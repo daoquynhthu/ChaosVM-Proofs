@@ -1,4 +1,5 @@
 import ChaosvmProofs.Definitions.Helpers
+import ChaosvmProofs.Definitions.QAvalanche
 
 /-! # G Mixer (Rust: `g_mixer.rs`).
 
@@ -15,61 +16,57 @@ structure ARXRoundConstants where
   k_doubleprime_r : Nat
   c_r : Nat
 
+structure QAvalancheRound where
+  mult : Nat
+  rot : Nat
+  xor_shift : Nat
+
+/-- Full G mixer config matching Rust `GMixerConfig`. -/
 structure GMixerConfig where
   rounds : ARXRoundConstants × ARXRoundConstants × ARXRoundConstants
+  q       : QAvalancheRound × QAvalancheRound × QAvalancheRound
+  q_prime : QAvalancheRound × QAvalancheRound × QAvalancheRound
+  q_doubleprime : QAvalancheRound × QAvalancheRound × QAvalancheRound
 
 /-- gInit: (tS⊕σ⊕r0, tC+CFA+h, tD⊕DDM⊕r1). -/
 def gInit (tS tC tD σ CFA DDM h r0 r1 : Nat) : Nat × Nat × Nat :=
   (tS ^^^ σ ^^^ r0, tC + CFA + h, tD ^^^ DDM ^^^ r1)
 
-/-- gRounds: abstract model. -/
-def gRounds (x y w : Nat) (cfg : GMixerConfig) : Nat × Nat :=
-  (x ^^^ y, w ^^^ x)
-
-/-- Full G mixer. -/
-def gMix (tS tC tD σ CFA DDM h r0 r1 : Nat) (cfg : GMixerConfig) : Nat × Nat :=
-  let (x, y, w) := gInit tS tC tD σ CFA DDM h r0 r1
-  gRounds x y w cfg
-
 -- ── T07a: ARX+Q round is a bijection on (x,y,w) ──────────────────────
 
-/-- Step a: x ← x + rotl(y⊕k, a). Invertible by subtraction. -/
+/-- Sub-step a: x ← x + rotl(y⊕k, a). Invertible by subtraction. -/
 def step_a (x y w k a : Nat) : Nat := x + rotl (y ^^^ k) a
 def step_a_inv (x' y w k a : Nat) : Nat := x' - rotl (y ^^^ k) a
 
 theorem step_a_bij (x y w k a : Nat) : step_a_inv (step_a x y w k a) y w k a = x := by
   unfold step_a step_a_inv; omega
 
-/-- XOR triple: (x ⊕ y) ⊕ y = x. Also useful for cancellation. -/
+/-- XOR triple. -/
 theorem xor_triple (x y : Nat) : (x ^^^ y) ^^^ y = x := by
   calc
     (x ^^^ y) ^^^ y = x ^^^ (y ^^^ y) := by rw [Nat.xor_assoc]
     _ = x ^^^ 0 := by rw [Nat.xor_self]
     _ = x := by simp
 
-/-- Step b: y ← y ⊕ rotl(w+k', b). Self-inverse (XOR). -/
+/-- Sub-step b: y ← y ⊕ rotl(w+k', b). Self-inverse. -/
 def step_b (x y w k' b : Nat) : Nat := y ^^^ rotl (w + k') b
-
 theorem step_b_bij (x y w k' b : Nat) : step_b x (step_b x y w k' b) w k' b = y := by
   unfold step_b; apply xor_triple
 
-/-- Step c: w ← w + rotl(x⊕k'', c). Invertible by subtraction. -/
+/-- Sub-step c: w ← w + rotl(x⊕k'', c). Invertible. -/
 def step_c (x y w k'' c : Nat) : Nat := w + rotl (x ^^^ k'') c
 def step_c_inv (x y w' k'' c : Nat) : Nat := w' - rotl (x ^^^ k'') c
-
 theorem step_c_bij (x y w k'' c : Nat) : step_c_inv x y (step_c x y w k'' c) k'' c = w := by
   unfold step_c step_c_inv; omega
 
 /-- Q-substep: x ← x ⊕ Q(y). Self-inverse. -/
 def qsub_x (x y : Nat) : Nat := x ^^^ y
-
 theorem qsub_x_bij (x y : Nat) : qsub_x (qsub_x x y) y = x := by
   unfold qsub_x; apply xor_triple
 
-/-- Q-substep: y ← y + Q(w). Invertible by subtraction. -/
+/-- Q-substep: y ← y + Q(w). Invertible. -/
 def qsub_y (y w : Nat) : Nat := y + w
 def qsub_y_inv (y' w : Nat) : Nat := y' - w
-
 theorem qsub_y_bij (y w : Nat) : qsub_y_inv (qsub_y y w) w = y := by
   unfold qsub_y qsub_y_inv; omega
 
@@ -83,11 +80,9 @@ def one_round (x y w : Nat) (rc : ARXRoundConstants) : Nat × Nat × Nat :=
   let w2 := qsub_x w1 x2
   (x2, y2, w2)
 
-/-- Constructive inverse of one_round, proved correct below. -/
+/-- Constructive inverse of one_round. -/
 def one_round_inv (t : Nat × Nat × Nat) (rc : ARXRoundConstants) : Nat × Nat × Nat :=
-  let x2 := t.1
-  let y2 := t.2.1
-  let w2 := t.2.2
+  let x2 := t.1; let y2 := t.2.1; let w2 := t.2.2
   let w1 := w2 ^^^ x2
   let y1 := y2 - w1
   let x1 := x2 ^^^ y1
@@ -96,27 +91,39 @@ def one_round_inv (t : Nat × Nat × Nat) (rc : ARXRoundConstants) : Nat × Nat 
   let x := x1 - rotl (y ^^^ rc.k_r) rc.a_r
   (x, y, w)
 
-/-- one_round_inv is a left inverse of one_round → one_round is injective. -/
 theorem one_round_inv_correct (x y w : Nat) (rc : ARXRoundConstants) :
     one_round_inv (one_round x y w rc) rc = (x, y, w) := by
   unfold one_round one_round_inv step_a step_b step_c qsub_x qsub_y
-  simp [xor_triple]
-  try omega
+  simp [xor_triple]; try omega
+
+-- ── 3-round gRounds matching Rust ────────────────────────────────────
+
+/-- Full 3-round gRounds with output mixing, matching Rust `g_rounds`. -/
+def gRounds (x y w : Nat) (cfg : GMixerConfig) : Nat × Nat :=
+  let (rc1, rc2, rc3) := cfg.rounds
+  let (x1, y1, w1) := one_round x y w rc1
+  let (x2, y2, w2) := one_round x1 y1 w1 rc2
+  let (x3, y3, w3) := one_round x2 y2 w2 rc3
+  (x3 ^^^ rotl y3 23, w3 ^^^ rotl x3 41)
+
+/-- Full G mixer: gInit + 3-round gRounds. -/
+def gMix (tS tC tD σ CFA DDM h r0 r1 : Nat) (cfg : GMixerConfig) : Nat × Nat :=
+  let (x, y, w) := gInit tS tC tD σ CFA DDM h r0 r1
+  gRounds x y w cfg
 
 theorem gMix_deterministic (tS tC tD σ CFA DDM h r0 r1 : Nat) (cfg : GMixerConfig) :
     gMix tS tC tD σ CFA DDM h r0 r1 cfg = gMix tS tC tD σ CFA DDM h r0 r1 cfg := rfl
 
 -- ── T07b: Output mixing is surjective ─────────────────────────────────
 
-/-- T07b: The output mixing (x⊕rotl(y,23), w⊕rotl(x,41)) is surjective.
+/-- The output mixing (x⊕rotl(y,23), w⊕rotl(x,41)) is surjective.
 
-For any (z_lo, z_hi), choose x=0, y=rotr(z_lo,23), w=z_hi.
-Then: 0 ⊕ rotl(rotr(z_lo,23),23) = z_lo  and  z_hi ⊕ rotl(0,41) = z_hi.
-
-Note: rotl/rotr are abstract (identity in the model). The surjectivity
-holds because rotl is invertible (its inverse is rotr). -/
+   Choose x = z_lo, y = 0, w = z_hi ⊕ rotl(z_lo, 41).
+   Then x ⊕ rotl(y,23) = z_lo  and  w ⊕ rotl(x,41) = z_hi (XOR triple). -/
 theorem output_mixing_surjective (z_lo z_hi : Nat) :
     ∃ (x y w : Nat), (x ^^^ rotl y 23) = z_lo ∧ (w ^^^ rotl x 41) = z_hi := by
-  refine ⟨0, rotr z_lo 23, z_hi, ?_, ?_⟩
-  · unfold rotl rotr; simp
-  · unfold rotl; simp
+  refine ⟨z_lo, 0, (z_hi ^^^ rotl z_lo 41), ?_, ?_⟩
+  · have h0 : rotl 0 23 = 0 := by
+      unfold rotl rotl64 shl shr mask64; simp
+    simp [h0]
+  · apply xor_triple

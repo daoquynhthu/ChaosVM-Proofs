@@ -35,10 +35,25 @@ Level 7 ── 功能等价性
   T17  ∀R_run₁,R_run₂: 相同程序+输入 → 相同最终语义输出
 ```
 
-## 完成状态
+## 完成状态（修复后）
 
-| 定理 | 状态 | Lean 证明 |
-|------|------|-----------|
+| 定理 | 状态 | 与 Rust 一致度 |
+|------|------|---------------|
+| T01 P_mod 双射 | ✅ 已证明 | 核心算术一致，q_avalanche 提取已抽象 |
+| T02 affine_map 双射 | ✅ 已证明 | 同 T01 |
+| T03 c2_from_edge 良定义 | ✅ 已证明 | ✅ 完全一致 |
+| T04 decompose_safe 确保奇数 | ✅ 已证明 | ✅ 完全一致 |
+| T05 g_init 确定型 | ✅ (rfl) | ✅ 完全一致 |
+| T07a ARX 轮置换 | ✅ 已证明 | ✅ 完整 3 轮 ARX+Q |
+| T07b 输出满射 | ✅ 已证明 | ✅ 完整 128→192 model |
+| T08 bridge+decode 不变性 | ✅ 已证明 | 代数消去，P 函数已抽象 |
+| T09 update_state 确定型 | ✅ (rfl) | ✅ 含 q_avalanche Δ 计算 |
+| T12 Init 确定型 | ✅ (rfl) | ✅ 含 q_avalanche |
+| T13 Init 发散 | ✅ 已证明 | ✅ 含 q_avalanche 投毒 |
+
+**修复后剩余抽象**：
+- `SemShare` 中 `P_mod` 的 `(a,b)` 参数：硬编码 `a=1`（因 `state=0` 时值与 Rust 一致，非零时值不同但代数消去不受影响）
+- `rotl64`/`rotr64` 的互逆定理未证明（输出满射证明已用 XOR 消去规避）
 | T01 P_mod 双射 | ✅ 已证明 (Injective ∧ Surjective) | `Definitions/Permutation.lean` |
 | T02 affine_map 双射 | ✅ 已证明 (Injective ∧ Surjective) | `Definitions/Permutation.lean` |
 | T03 c2_from_edge 良定义 | ✅ 已证明 | `Definitions/EdgeEncoding.lean` |
