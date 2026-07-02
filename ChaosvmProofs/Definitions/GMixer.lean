@@ -40,7 +40,7 @@ def step_a_inv (x' y w k a : Nat) : Nat := x' - rotl (y ^^^ k) a
 theorem step_a_bij (x y w k a : Nat) : step_a_inv (step_a x y w k a) y w k a = x := by
   unfold step_a step_a_inv; omega
 
-/-- XOR triple: (x ⊕ y) ⊕ y = x. -/
+/-- XOR triple: (x ⊕ y) ⊕ y = x. Also useful for cancellation. -/
 theorem xor_triple (x y : Nat) : (x ^^^ y) ^^^ y = x := by
   calc
     (x ^^^ y) ^^^ y = x ^^^ (y ^^^ y) := by rw [Nat.xor_assoc]
@@ -83,22 +83,28 @@ def one_round (x y w : Nat) (rc : ARXRoundConstants) : Nat × Nat × Nat :=
   let w2 := qsub_x w1 x2
   (x2, y2, w2)
 
+/-- Constructive inverse of one_round, proved correct below. -/
+def one_round_inv (t : Nat × Nat × Nat) (rc : ARXRoundConstants) : Nat × Nat × Nat :=
+  let x2 := t.1
+  let y2 := t.2.1
+  let w2 := t.2.2
+  let w1 := w2 ^^^ x2
+  let y1 := y2 - w1
+  let x1 := x2 ^^^ y1
+  let w := w1 - rotl (x1 ^^^ rc.k_doubleprime_r) rc.c_r
+  let y := y1 ^^^ rotl (w + rc.k_prime_r) rc.b_r
+  let x := x1 - rotl (y ^^^ rc.k_r) rc.a_r
+  (x, y, w)
+
+/-- one_round_inv is a left inverse of one_round → one_round is injective. -/
+theorem one_round_inv_correct (x y w : Nat) (rc : ARXRoundConstants) :
+    one_round_inv (one_round x y w rc) rc = (x, y, w) := by
+  unfold one_round one_round_inv step_a step_b step_c qsub_x qsub_y
+  simp [xor_triple]
+  try omega
+
 theorem gMix_deterministic (tS tC tD σ CFA DDM h r0 r1 : Nat) (cfg : GMixerConfig) :
     gMix tS tC tD σ CFA DDM h r0 r1 cfg = gMix tS tC tD σ CFA DDM h r0 r1 cfg := rfl
-
-/-- T07a: Each round (6 substeps) is a bijection on ℕ³ → ℕ³.
-
-Each substep only modifies one component; the inverse is constructible
-by reversing the 6 operations in opposite order. Composition of 6
-bijections is a bijection. -/
-theorem round_bijection (x y w : Nat) (rc : ARXRoundConstants) :
-    ∃ (x' y' w' : Nat), one_round x y w rc = (x', y', w') := by
-  let r := one_round x y w rc
-  have hr : r = one_round x y w rc := rfl
-  refine ⟨r.1, r.2.1, r.2.2, ?_⟩
-  calc
-    one_round x y w rc = r := by symm; exact hr
-    _ = (r.1, r.2.1, r.2.2) := rfl
 
 -- ── T07b: Output mixing is surjective ─────────────────────────────────
 
