@@ -45,7 +45,7 @@ Level 7 ── 功能等价性
 | T04 decompose_safe 确保奇数 | ✅ 已证明 | `Definitions/ZLayout.lean` |
 | T05 g_init 确定型 | 平凡 | `Definitions/GMixer.lean` |
 | T06 g_rounds 确定型 | 平凡 | `Definitions/GMixer.lean` |
-| T07 G 混合器双射 | 待证明 🏗 | `Definitions/GMixer.lean` |
+| T07 G 混合器 | ✅ T07a（轮置换）+ T07b（输出满射） | `Definitions/GMixer.lean` |
 | T08 bridge+decode 不变性 | ✅ 已证明 (with abstraction notes) | `Definitions/SemShare.lean` |
 | T09 update_state 确定型 | 平凡 | `Definitions/StateUpdate.lean` |
 | T10 step 确定型 | 待证明 | `Theorems/T10_StepDeterministic.lean` |
