@@ -1,0 +1,13 @@
+# Build artifacts
+.lake/
+*.olean
+*.ilean
+*.c
+*.trace
+
+# Temp test files
+test_*.lean
+
+# IDE
+.vscode/
+.idea/
