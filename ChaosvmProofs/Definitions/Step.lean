@@ -7,6 +7,45 @@ import ChaosvmProofs.Definitions.EdgeEncoding
 import ChaosvmProofs.Definitions.SemShare
 import ChaosvmProofs.Definitions.StateUpdate
 
+/-- Subset of VmState that changes across steps. -/
+structure VmState where
+  sigma      : Nat
+  cfa        : Nat
+  ddm        : Nat
+  h          : Nat
+  pc         : Nat
+  ctr        : Nat
+  ctx_digest : Nat
+
+/-- Constant program parameters (tables, configs, run nonces). -/
+structure ProgramContext where
+  t_sigma  : Nat → Nat
+  t_cfa    : Nat → Nat
+  t_ddm    : Nat → Nat
+  g_config : GMixerConfig
+  q_sigma  : QAvalancheConfig
+  q_cfa    : QAvalancheConfig
+  q_ddm    : QAvalancheConfig
+  q_h      : QAvalancheConfig
+  q_ent    : QAvalancheConfig
+  r0       : Nat
+  r1       : Nat
+  m        : Nat
+
+/-- Per-instruction runtime data extracted from registers/memory. -/
+structure InsnRuntime where
+  alpha   : Nat
+  c0      : Nat
+  edge    : Nat
+  ra_val  : Nat
+  rb_val  : Nat
+  result  : Nat
+  mem_val : Nat
+  call    : Nat
+  spawn   : Nat
+  ent_mix : Nat
+  salt    : Nat
+
 /-- Result of one step() invocation.  Models Rust `VmState` fields that change. -/
 structure StepOutput where
   sigma_next     : Nat
@@ -72,3 +111,32 @@ def step_core (sigma cfa ddm h pc ctr ctx_digest
     z_lo        := z_lo
     z_hi        := z_hi
   }
+
+/-- Run one step given structured state/instruction/context.
+    Returns (next_state, result). -/
+def step_once (st : VmState) (insn : InsnRuntime) (ctx : ProgramContext) : VmState × Nat :=
+  let so := step_core st.sigma st.cfa st.ddm st.h st.pc st.ctr st.ctx_digest
+              insn.edge insn.alpha insn.c0 ctx.r0 ctx.r1 ctx.m
+              ctx.t_sigma ctx.t_cfa ctx.t_ddm ctx.g_config
+              ctx.q_sigma ctx.q_cfa ctx.q_ddm ctx.q_h ctx.q_ent
+              insn.ra_val insn.rb_val insn.result insn.mem_val insn.call insn.spawn insn.ent_mix insn.salt
+  let next : VmState := {
+    sigma      := so.sigma_next
+    cfa        := so.cfa_next
+    ddm        := so.ddm_next
+    h          := so.h_next
+    pc         := so.pc_next
+    ctr        := so.ctr_next
+    ctx_digest := so.ctx_digest_next
+  }
+  (next, so.v_t)
+
+/-- Iterate step_once over a list of instruction frames.
+    Returns (final_state, accumulated_results). -/
+def run_program_core (st : VmState) (insns : List InsnRuntime) (ctx : ProgramContext) : VmState × List Nat :=
+  match insns with
+  | [] => (st, [])
+  | frame :: rest =>
+    let (st', res) := step_once st frame ctx
+    let (st'', results) := run_program_core st' rest ctx
+    (st'', res :: results)
