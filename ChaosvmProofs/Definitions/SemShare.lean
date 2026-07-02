@@ -32,7 +32,7 @@ def decode_i41 (c0_eff c1_t c2 σ DDM : Nat) : Nat :=
 theorem swap_pair (x y : Nat) : x ^^^ y ^^^ x = y := by
   calc
     x ^^^ y ^^^ x = x ^^^ (x ^^^ y) := by
-      simp [Nat.xor_assoc, Nat.xor_comm]
+      simp [Nat.xor_comm]
     _ = (x ^^^ x) ^^^ y := by rw [← Nat.xor_assoc]
     _ = 0 ^^^ y := by rw [Nat.xor_self]
     _ = y := by simp

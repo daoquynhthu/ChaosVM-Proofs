@@ -32,7 +32,7 @@ theorem exists_mod_inv_any (a : Nat) (ha_odd : a % 2 = 1) : ∃ aInv, (a * aInv)
 def P_mod (x a b : Nat) : Nat := (a * x + b) % 256
 
 /-- If (X+B)%256 = (Y+B)%256 with X,Y,B < 256, then X = Y. -/
-theorem add_mod_inj (X Y B : Nat) (hX : X < 256) (hY : Y < 256) (hB : B < 256)
+theorem add_mod_inj (X Y B : Nat) (hX : X < 256) (hY : Y < 256) (_hB : B < 256)
     (h_eq : (X + B) % 256 = (Y + B) % 256) : X = Y := by
   omega
 

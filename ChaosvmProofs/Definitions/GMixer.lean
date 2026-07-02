@@ -35,8 +35,8 @@ def gInit (tS tC tD σ CFA DDM h r0 r1 : Nat) : Nat × Nat × Nat :=
 -- ── T07a: ARX+Q round is a bijection on (x,y,w) ──────────────────────
 
 /-- Sub-step a: x ← x + rotl(y⊕k, a). Invertible by subtraction. -/
-def step_a (x y w k a : Nat) : Nat := x + rotl (y ^^^ k) a
-def step_a_inv (x' y w k a : Nat) : Nat := x' - rotl (y ^^^ k) a
+def step_a (x y _w k a : Nat) : Nat := x + rotl (y ^^^ k) a
+def step_a_inv (x' y _w k a : Nat) : Nat := x' - rotl (y ^^^ k) a
 
 theorem step_a_bij (x y w k a : Nat) : step_a_inv (step_a x y w k a) y w k a = x := by
   unfold step_a step_a_inv; omega
@@ -49,13 +49,13 @@ theorem xor_triple (x y : Nat) : (x ^^^ y) ^^^ y = x := by
     _ = x := by simp
 
 /-- Sub-step b: y ← y ⊕ rotl(w+k', b). Self-inverse. -/
-def step_b (x y w k' b : Nat) : Nat := y ^^^ rotl (w + k') b
+def step_b (_x y w k' b : Nat) : Nat := y ^^^ rotl (w + k') b
 theorem step_b_bij (x y w k' b : Nat) : step_b x (step_b x y w k' b) w k' b = y := by
   unfold step_b; apply xor_triple
 
 /-- Sub-step c: w ← w + rotl(x⊕k'', c). Invertible. -/
-def step_c (x y w k'' c : Nat) : Nat := w + rotl (x ^^^ k'') c
-def step_c_inv (x y w' k'' c : Nat) : Nat := w' - rotl (x ^^^ k'') c
+def step_c (x _y w k'' c : Nat) : Nat := w + rotl (x ^^^ k'') c
+def step_c_inv (x _y w' k'' c : Nat) : Nat := w' - rotl (x ^^^ k'') c
 theorem step_c_bij (x y w k'' c : Nat) : step_c_inv x y (step_c x y w k'' c) k'' c = w := by
   unfold step_c step_c_inv; omega
 

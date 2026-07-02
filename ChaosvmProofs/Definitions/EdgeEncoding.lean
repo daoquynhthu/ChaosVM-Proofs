@@ -7,7 +7,7 @@ def c2_from_edge (edge : Nat) : Nat :=
   (edge ^^^ (edge / 256) ^^^ (edge / 65536)) % 256
 
 /-- Assign edge labels (abstract). -/
-def assign_edge_labels (num : Nat) (seed : Nat) : List Nat :=
+def assign_edge_labels (num : Nat) (_seed : Nat) : List Nat :=
   List.range num
 
 theorem c2_from_edge_deterministic (edge : Nat) : c2_from_edge edge = c2_from_edge edge := rfl

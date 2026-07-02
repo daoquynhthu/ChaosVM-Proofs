@@ -100,7 +100,7 @@ theorem c2_zeroed (u anchor c1_t c2 σ DDM : Nat) :
   rw [h_main2]
 
 /-- K4c: Zeroing c0 in bridge gives `P(anchor,1,0) ⊕ P(c2,1,0)`. -/
-theorem c0_zeroed (u anchor c1_t c2 σ DDM : Nat) :
+theorem c0_zeroed (_u anchor c1_t c2 σ DDM : Nat) :
     decode_i41 (bridge_i41 0 anchor c1_t c2 σ DDM) c1_t c2 σ DDM = P_mod anchor 1 0 ^^^ P_mod c2 1 0 := by
   unfold bridge_i41 decode_i41
   simp
