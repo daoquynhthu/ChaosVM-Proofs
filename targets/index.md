@@ -51,7 +51,7 @@ Level 7 ── 功能等价性
 | T10 step 确定型 | 待证明 | `Theorems/T10_StepDeterministic.lean` |
 | T11 run_program 确定型 | 待证明 | `Theorems/T11_RunProgramDeterministic.lean` |
 | T12 Init 确定型 | 平凡 | `Definitions/Init.lean` |
-| T13 Init poision 发散 | 待证明 | `Definitions/Init.lean` |
+| T13 Init poision 发散 | ✅ 已证明 | `Definitions/Init.lean` |
 | T14 投毒级联 | 待证明 | `Theorems/T14_PoisonCascade.lean` |
 | T15 无单一出口 | 待证明 | `Theorems/T15_NoSingleExit.lean` |
 | T16 R_run 不变性 | 待证明 | `Theorems/T16_RRunInvariance.lean` |
