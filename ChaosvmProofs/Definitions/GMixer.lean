@@ -96,6 +96,33 @@ theorem one_round_inv_correct (x y w : Nat) (rc : ARXRoundConstants) :
   unfold one_round one_round_inv step_a step_b step_c qsub_x qsub_y
   simp [xor_triple]; try omega
 
+-- ── K1: three-round gRounds_internal is a bijection ─────────────────
+
+/-- Adapt one_round to accept a triple (Nat × Nat × Nat) as input. -/
+def one_round' (t : Nat × Nat × Nat) (rc : ARXRoundConstants) : Nat × Nat × Nat :=
+  one_round t.1 t.2.1 t.2.2 rc
+
+theorem one_round'_inv (t : Nat × Nat × Nat) (rc : ARXRoundConstants) :
+    one_round_inv (one_round' t rc) rc = t := by
+  unfold one_round'
+  calc
+    one_round_inv (one_round t.1 t.2.1 t.2.2 rc) rc = (t.1, t.2.1, t.2.2) :=
+      one_round_inv_correct t.1 t.2.1 t.2.2 rc
+    _ = t := rfl
+
+/-- Internal 3-round gRounds WITHOUT output mixing (the bijective core). -/
+def gRounds_internal (x y w : Nat) (cfg : GMixerConfig) : Nat × Nat × Nat :=
+  one_round' (one_round' (one_round' (x, y, w) cfg.rounds.1) cfg.rounds.2.1) cfg.rounds.2.2
+
+/-- Constructive inverse of gRounds_internal (3 one_round inverses, reversed). -/
+def gRounds_internal_inv (t : Nat × Nat × Nat) (cfg : GMixerConfig) : Nat × Nat × Nat :=
+  one_round_inv (one_round_inv (one_round_inv t cfg.rounds.2.2) cfg.rounds.2.1) cfg.rounds.1
+
+theorem gRounds_internal_inv_correct (x y w : Nat) (cfg : GMixerConfig) :
+    gRounds_internal_inv (gRounds_internal x y w cfg) cfg = (x, y, w) := by
+  unfold gRounds_internal gRounds_internal_inv
+  simp [one_round'_inv]
+
 -- ── 3-round gRounds matching Rust ────────────────────────────────────
 
 /-- Full 3-round gRounds with output mixing, matching Rust `g_rounds`. -/
