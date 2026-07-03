@@ -4,38 +4,66 @@ import ChaosvmProofs.Definitions.SemShare
 
 ## 定理陈述
 
-∀ R_run（参数化为 r0, r1, m），任意步 t 的解码操作码 v_t 与当前状态
-(σₜ, CFAₜ, DDMₜ, Hₜ) 以及 R_run 参数无关，仅取决于编码指令中的固定字段
-和构建时表格。
+`decode_i41(bridge_i41(c0, anchor, c1_t, c2, σ, DDM, q_σ, q_D))` 的值
+与 `σ`、`DDM`、`c1_t` 无关，只取决于 `c0`, `anchor`, `c2`, `q_σ`, `q_D`。
 
-## 证明
+在 VM 执行中：
+- `c0`, `alpha`, `edge` 来自编码指令（构建时确定）
+- `anchor = lo8(t_ddm[alpha])` 来自构建时表格和指令 alpha 字段
+- `c2 = c2_from_edge(edge)` 来自指令 edge 字段
+- `σ`, `DDM`, `c1_t` 取决于 R_run 参数 (r0, r1, m) 和当前执行状态
 
-`decode(bridge(encode(u, anchor, c2), anchor, c1_t, c2, σ, DDM), c1_t, c2, σ, DDM) = u`
-对**所有** σ, DDM, c1_t, c2, anchor 成立（T08）。由于：
-
-- anchor = lo8(t_ddm[alpha]) — 仅依赖于 alpha（指令字段）和构建表格
-- c2 = c2_from_edge(edge) — 仅依赖于 edge（指令字段）
-- c0 — 直接来自编码指令
-- σₜ, DDMₜ, c1_t 取决于 R_run，但代数消去使其不影响结果
-
-因此解码值 v_t 对任意 R_run 不变。
+因此 v_t 对任意 R_run 输出相同值 — R_run 不变性成立。
 -/
 
-/-- T16: R_run 不变性 (Φₜ 共轭)，使用完整 permute (QAvalanche-backed)。
+/-- 引理: decode(bridge(c0, ...)) = c0 ⊕ permute(anchor,0) ⊕ permute(c2,0) — 与 σ, DDM, c1_t 无关。
+    
+    证明: 将 c0 表示为 encode(u) 的形式后用 T08 (bridge_decode_invariant)。 -/
+theorem T16_decode_bridge_general (c0 anchor c1_t c2 σ DDM : Nat) (q_sigma q_ddm : QAvalancheConfig) :
+    decode_i41 (bridge_i41 c0 anchor c1_t c2 σ DDM q_sigma q_ddm) c1_t c2 σ DDM q_sigma q_ddm
+    = c0 ^^^ permute anchor 0 q_sigma ^^^ permute c2 0 q_ddm := by
+  let u := c0 ^^^ permute anchor 0 q_sigma ^^^ permute c2 0 q_ddm
+  have hu : encode_c0_i41 u anchor c2 q_sigma q_ddm = c0 := by
+    unfold encode_c0_i41
+    dsimp [u]
+    calc
+      (c0 ^^^ permute anchor 0 q_sigma ^^^ permute c2 0 q_ddm) ^^^ permute anchor 0 q_sigma ^^^ permute c2 0 q_ddm
+          = c0 ^^^ permute anchor 0 q_sigma ^^^ permute c2 0 q_ddm ^^^ permute anchor 0 q_sigma ^^^ permute c2 0 q_ddm := rfl
+      _ = c0 ^^^ ((permute anchor 0 q_sigma ^^^ permute c2 0 q_ddm ^^^ permute anchor 0 q_sigma) ^^^ permute c2 0 q_ddm) := by
+        simp [Nat.xor_assoc]
+      _ = c0 ^^^ (((permute anchor 0 q_sigma ^^^ permute anchor 0 q_sigma) ^^^ permute c2 0 q_ddm) ^^^ permute c2 0 q_ddm) := by
+        have h_swap : permute anchor 0 q_sigma ^^^ permute c2 0 q_ddm ^^^ permute anchor 0 q_sigma
+            = permute anchor 0 q_sigma ^^^ permute anchor 0 q_sigma ^^^ permute c2 0 q_ddm := by
+          calc
+            permute anchor 0 q_sigma ^^^ permute c2 0 q_ddm ^^^ permute anchor 0 q_sigma
+                = permute anchor 0 q_sigma ^^^ (permute c2 0 q_ddm ^^^ permute anchor 0 q_sigma) := by rw [Nat.xor_assoc]
+            _ = permute anchor 0 q_sigma ^^^ (permute anchor 0 q_sigma ^^^ permute c2 0 q_ddm) := by rw [Nat.xor_comm (permute c2 0 q_ddm) (permute anchor 0 q_sigma)]
+            _ = (permute anchor 0 q_sigma ^^^ permute anchor 0 q_sigma) ^^^ permute c2 0 q_ddm := by rw [← Nat.xor_assoc]
+            _ = permute anchor 0 q_sigma ^^^ permute anchor 0 q_sigma ^^^ permute c2 0 q_ddm := rfl
+        rw [h_swap]
+      _ = c0 ^^^ ((0 ^^^ permute c2 0 q_ddm) ^^^ permute c2 0 q_ddm) := by simp
+      _ = c0 ^^^ (permute c2 0 q_ddm ^^^ permute c2 0 q_ddm) := by simp
+      _ = c0 ^^^ 0 := by simp
+      _ = c0 := by simp
+  calc
+    decode_i41 (bridge_i41 c0 anchor c1_t c2 σ DDM q_sigma q_ddm) c1_t c2 σ DDM q_sigma q_ddm
+        = decode_i41 (bridge_i41 (encode_c0_i41 u anchor c2 q_sigma q_ddm) anchor c1_t c2 σ DDM q_sigma q_ddm)
+                     c1_t c2 σ DDM q_sigma q_ddm := by rw [hu]
+    _ = u := bridge_decode_invariant u anchor c1_t c2 σ DDM q_sigma q_ddm
+    _ = c0 ^^^ permute anchor 0 q_sigma ^^^ permute c2 0 q_ddm := rfl
 
-    bridge+decode 管线中 σ 和 DDM 项代数消去，使解码后的操作码与当前状态
-    及 R_run 初始化参数无关。这是 T08 的直接推论。
+/-- T16: R_run 不变性 (Φₜ 共轭) — v_t 对任意两组状态参数输出相同值。
 
-    `anchor` = lo8(t_ddm[alpha]) 由构建时表格和 alpha 指令字段决定，不依赖于
-    R_run 参数 (r0, r1, m)。
-
-    `c2` = c2_from_edge(edge) 仅由 edge 指令字段决定。
-
-    `c0` 来自编码指令。
-
-    因此 `u = encode_c0_i41(c0, anchor, c2)` 对任意 R_run 都是常量：
-    `decode(bridge(encode(u), ...), ...) = u` 对所有 σ, DDM, c1_t, q_sigma, q_ddm 成立。 -/
-theorem T16_rrun_invariance (u anchor c1_t c2 σ DDM : Nat) (q_sigma q_ddm : QAvalancheConfig) :
-    decode_i41 (bridge_i41 (encode_c0_i41 u anchor c2 q_sigma q_ddm) anchor c1_t c2 σ DDM q_sigma q_ddm)
-               c1_t c2 σ DDM q_sigma q_ddm = u :=
-  bridge_decode_invariant u anchor c1_t c2 σ DDM q_sigma q_ddm
+    `decode_i41(bridge_i41(c0, anchor, c1_t, c2, σ, DDM, ...))` 
+    对于任意两组 (σ₁, DDM₁, c1_t₁) 和 (σ₂, DDM₂, c1_t₂) 结果相同。
+    因此 v_t 不依赖于 R_run（即运行时的随机/熵源参数）。 -/
+theorem T16_rrun_invariance (c0 anchor c2 : Nat) (q_sigma q_ddm : QAvalancheConfig)
+    (σ₁ σ₂ DDM₁ DDM₂ c1_t₁ c1_t₂ : Nat) :
+    decode_i41 (bridge_i41 c0 anchor c1_t₁ c2 σ₁ DDM₁ q_sigma q_ddm) c1_t₁ c2 σ₁ DDM₁ q_sigma q_ddm
+    = decode_i41 (bridge_i41 c0 anchor c1_t₂ c2 σ₂ DDM₂ q_sigma q_ddm) c1_t₂ c2 σ₂ DDM₂ q_sigma q_ddm := by
+  calc
+    decode_i41 (bridge_i41 c0 anchor c1_t₁ c2 σ₁ DDM₁ q_sigma q_ddm) c1_t₁ c2 σ₁ DDM₁ q_sigma q_ddm
+        = c0 ^^^ permute anchor 0 q_sigma ^^^ permute c2 0 q_ddm :=
+      T16_decode_bridge_general c0 anchor c1_t₁ c2 σ₁ DDM₁ q_sigma q_ddm
+    _ = decode_i41 (bridge_i41 c0 anchor c1_t₂ c2 σ₂ DDM₂ q_sigma q_ddm) c1_t₂ c2 σ₂ DDM₂ q_sigma q_ddm := by
+      rw [T16_decode_bridge_general c0 anchor c1_t₂ c2 σ₂ DDM₂ q_sigma q_ddm]

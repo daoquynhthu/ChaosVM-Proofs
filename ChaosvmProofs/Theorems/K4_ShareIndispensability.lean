@@ -134,4 +134,35 @@ theorem c0_zeroed (_u anchor c1_t c2 σ DDM : Nat) (q_sigma q_ddm : QAvalancheCo
   rw [xor_swap_first C A (D ^^^ (B ^^^ (C ^^^ D)))]
   rw [h_inner_c]
 
+/-- K4b 推论: `permute(c2,0) ⊕ permute(0,DDM) ⊕ permute(c2,DDM) ≠ 0` 时 decode ≠ u。 -/
+theorem c2_zeroed_ne_u (u anchor c1_t c2 σ DDM : Nat) (q_sigma q_ddm : QAvalancheConfig)
+    (h : permute c2 0 q_ddm ^^^ permute 0 DDM q_ddm ^^^ permute c2 DDM q_ddm ≠ 0) :
+    decode_i41 (bridge_i41 (encode_c0_i41 u anchor c2 q_sigma q_ddm) anchor c1_t 0 σ DDM q_sigma q_ddm)
+               c1_t c2 σ DDM q_sigma q_ddm ≠ u := by
+  rw [c2_zeroed u anchor c1_t c2 σ DDM q_sigma q_ddm]
+  intro h_eq
+  apply h
+  let X := permute c2 0 q_ddm ^^^ permute 0 DDM q_ddm ^^^ permute c2 DDM q_ddm
+  have h_eq_X : u ^^^ X = u := by
+    simpa [X, Nat.xor_assoc] using h_eq
+  have hX : (u ^^^ X) ^^^ u = X := swap_pair u X
+  calc
+    X = (u ^^^ X) ^^^ u := hX.symm
+    _ = u ^^^ u := by rw [h_eq_X]
+    _ = 0 := Nat.xor_self _
+
+/-- K4c 推论: `c0 ≠ 0` 时 decode ≠ u（即 c0 为零化时必须恢复原始编码才可能相等）。 -/
+theorem c0_zeroed_ne_u (u anchor c1_t c2 σ DDM : Nat) (q_sigma q_ddm : QAvalancheConfig)
+    (h_c0 : (encode_c0_i41 u anchor c2 q_sigma q_ddm) ≠ 0) :
+    decode_i41 (bridge_i41 0 anchor c1_t c2 σ DDM q_sigma q_ddm) c1_t c2 σ DDM q_sigma q_ddm ≠ u := by
+  rw [c0_zeroed u anchor c1_t c2 σ DDM q_sigma q_ddm]
+  intro h_eq
+  apply h_c0
+  unfold encode_c0_i41
+  calc
+    u ^^^ permute anchor 0 q_sigma ^^^ permute c2 0 q_ddm
+        = u ^^^ (permute anchor 0 q_sigma ^^^ permute c2 0 q_ddm) := by simp [Nat.xor_assoc]
+    _ = (permute anchor 0 q_sigma ^^^ permute c2 0 q_ddm) ^^^ (permute anchor 0 q_sigma ^^^ permute c2 0 q_ddm) := by rw [h_eq]
+    _ = 0 := by simp
+
 end K4
