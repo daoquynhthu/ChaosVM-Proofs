@@ -149,6 +149,14 @@ def gRounds (x y w : Nat) (cfg : GMixerConfig) : Nat × Nat :=
   let (x3, y3, w3) := one_round x2 y2 w2 rc3 q3 qp3 qdp3
   (x3 ^^^ rotl y3 23, w3 ^^^ rotl x3 41)
 
+/-- gInit is deterministic: equal inputs → equal outputs. -/
+theorem gInit_deterministic (tS tC tD σ CFA DDM h r0 r1 : Nat) :
+    gInit tS tC tD σ CFA DDM h r0 r1 = gInit tS tC tD σ CFA DDM h r0 r1 := rfl
+
+/-- gRounds is deterministic: equal inputs → equal outputs. -/
+theorem gRounds_deterministic (x y w : Nat) (cfg : GMixerConfig) :
+    gRounds x y w cfg = gRounds x y w cfg := rfl
+
 /-- Full G mixer: gInit + 3-round gRounds. -/
 def gMix (tS tC tD σ CFA DDM h r0 r1 : Nat) (cfg : GMixerConfig) : Nat × Nat :=
   let (x, y, w) := gInit tS tC tD σ CFA DDM h r0 r1

@@ -342,3 +342,45 @@ theorem qAvalanche_inj (a b : Nat) (cfg : QAvalancheConfig) (invMult : Nat)
     xor_shr_inj _ _ cfg.xor_shift h_z2 h_shift
   -- Step 1: multiplication by odd mult is injective modulo 2^64
   exact mul_odd_inj_mod_2pow64 a b cfg.mult invMult h_z1 ha hb h_inv
+
+/-- `rotl64(x,n) < 2^64` when `x < 2^64`. -/
+theorem rotl64_lt_two_pow (x n : Nat) (hx : x < 2 ^ 64) : rotl64 x n < 2 ^ 64 := by
+  have h := rotl64_eq_add x n hx
+  rw [h]
+  let n' := n % 64
+  have hn' : n' < 64 := Nat.mod_lt n (by omega)
+  have h_lo_lt : x % (2 ^ (64 - n')) < 2 ^ (64 - n') :=
+    Nat.mod_lt _ (Nat.two_pow_pos (64 - n'))
+  have h_hi_lt : x / (2 ^ (64 - n')) < 2 ^ n' := decompose_hi_bound x n' hx hn'
+  have h_mul_eq : 2 ^ (64 - n') * 2 ^ n' = 2 ^ 64 :=
+    two_pow_mul_eq (64 - n') n' (by omega)
+  have h_lo_mul_bound : (x % (2 ^ (64 - n'))) * 2 ^ n' + 2 ^ n' ≤ 2 ^ 64 := by
+    have h_eq : (x % (2 ^ (64 - n'))) * 2 ^ n' + 2 ^ n' = ((x % (2 ^ (64 - n'))) + 1) * 2 ^ n' := by
+      rw [Nat.succ_mul]
+    rw [h_eq]
+    have h_le : (x % (2 ^ (64 - n'))) + 1 ≤ 2 ^ (64 - n') := by omega
+    calc
+      ((x % (2 ^ (64 - n'))) + 1) * 2 ^ n' ≤ 2 ^ (64 - n') * 2 ^ n' :=
+        Nat.mul_le_mul h_le (Nat.le_refl _)
+      _ = 2 ^ 64 := h_mul_eq
+  have h_sum_lt : (x % (2 ^ (64 - n'))) * 2 ^ n' + (x / (2 ^ (64 - n'))) < 2 ^ 64 := by
+    have hlt : (x % (2 ^ (64 - n'))) * 2 ^ n' + (x / (2 ^ (64 - n'))) <
+               (x % (2 ^ (64 - n'))) * 2 ^ n' + 2 ^ n' := by omega
+    omega
+  exact h_sum_lt
+
+/-- `rotl(x,n) < 2^64` when `x < 2^64`. -/
+theorem rotl_lt_two_pow (x n : Nat) (hx : x < 2 ^ 64) : rotl x n < 2 ^ 64 :=
+  rotl64_lt_two_pow x n hx
+
+/-- `qAvalanche(x,cfg) < 2^64` for any x and any config. -/
+theorem qAvalanche_lt_two_pow (x : Nat) (q : QAvalancheConfig) : qAvalanche x q < 2 ^ 64 := by
+  unfold qAvalanche
+  have hmod : (x * q.mult) % (2 ^ 64) < 2 ^ 64 := Nat.mod_lt _ (Nat.two_pow_pos 64)
+  have hshr : shr ((x * q.mult) % (2 ^ 64)) q.xor_shift < 2 ^ 64 := by
+    have hle : shr ((x * q.mult) % (2 ^ 64)) q.xor_shift ≤ (x * q.mult) % (2 ^ 64) := by
+      unfold shr; exact Nat.div_le_self _ _
+    omega
+  have hxor : ((x * q.mult) % (2 ^ 64) ^^^ shr ((x * q.mult) % (2 ^ 64)) q.xor_shift) < 2 ^ 64 :=
+    xor_lt_two_pow _ _ 64 hmod hshr
+  exact rotl64_lt_two_pow _ _ hxor

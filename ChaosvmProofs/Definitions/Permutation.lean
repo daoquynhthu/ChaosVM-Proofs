@@ -184,6 +184,11 @@ def permute (val state : Nat) (q : QAvalancheConfig) : Nat :=
   let b := (mix / 256) % 256
   P_mod val a b
 
+/-- Expand `permute` into explicit modular form (no `let` binders). -/
+theorem permute_eq_mod_form (val state : Nat) (q : QAvalancheConfig) : permute val state q = ((Nat.lor (qAvalanche state q % 256) 1 * val + (qAvalanche state q / 256) % 256) % 256) := by
+  unfold permute P_mod
+  dsimp
+
 /-- `permute(·, state, q)` is bijective on Fin 256 for any state and q.
     Since `a` is always odd (low bit set to 1), bijectivity follows from
     `P_mod_bijective`. -/

@@ -19,49 +19,6 @@ injective in `h`.  T13 proves that init poisons produce different h₀.
 H-chain updates.
 -/
 
--- ── Helper: rotl64 of a bounded value always stays < 2^64 ────────────
-
-theorem rotl64_lt_two_pow_of_lt (x n : Nat) (hx : x < 2 ^ 64) : rotl64 x n < 2 ^ 64 := by
-  have h := rotl64_eq_add x n hx
-  rw [h]
-  let n' := n % 64
-  have hn' : n' < 64 := Nat.mod_lt n (by omega)
-  have h_lo_lt : x % (2 ^ (64 - n')) < 2 ^ (64 - n') :=
-    Nat.mod_lt _ (Nat.two_pow_pos (64 - n'))
-  have h_hi_lt : x / (2 ^ (64 - n')) < 2 ^ n' := decompose_hi_bound x n' hx hn'
-  have h_mul_eq : 2 ^ (64 - n') * 2 ^ n' = 2 ^ 64 :=
-    two_pow_mul_eq (64 - n') n' (by omega)
-  have h_lo_mul_bound : (x % (2 ^ (64 - n'))) * 2 ^ n' + 2 ^ n' ≤ 2 ^ 64 := by
-    have h_eq : (x % (2 ^ (64 - n'))) * 2 ^ n' + 2 ^ n' = ((x % (2 ^ (64 - n'))) + 1) * 2 ^ n' := by
-      rw [Nat.succ_mul]
-    rw [h_eq]
-    have h_le : (x % (2 ^ (64 - n'))) + 1 ≤ 2 ^ (64 - n') := by omega
-    calc
-      ((x % (2 ^ (64 - n'))) + 1) * 2 ^ n' ≤ 2 ^ (64 - n') * 2 ^ n' :=
-        Nat.mul_le_mul h_le (Nat.le_refl _)
-      _ = 2 ^ 64 := h_mul_eq
-  have h_sum_lt : (x % (2 ^ (64 - n'))) * 2 ^ n' + (x / (2 ^ (64 - n'))) < 2 ^ 64 := by
-    have hlt : (x % (2 ^ (64 - n'))) * 2 ^ n' + (x / (2 ^ (64 - n'))) <
-               (x % (2 ^ (64 - n'))) * 2 ^ n' + 2 ^ n' := by omega
-    omega
-  exact h_sum_lt
-
-theorem rotl_lt_two_pow_of_lt (x n : Nat) (hx : x < 2 ^ 64) : rotl x n < 2 ^ 64 :=
-  rotl64_lt_two_pow_of_lt x n hx
-
--- ── Helper: qAvalanche always returns < 2^64 ───────────────────────────
-
-theorem qAvalanche_lt_two_pow (x : Nat) (q : QAvalancheConfig) : qAvalanche x q < 2 ^ 64 := by
-  unfold qAvalanche
-  have hmod : (x * q.mult) % (2 ^ 64) < 2 ^ 64 := Nat.mod_lt _ (Nat.two_pow_pos 64)
-  have hshr : shr ((x * q.mult) % (2 ^ 64)) q.xor_shift < 2 ^ 64 := by
-    have hle : shr ((x * q.mult) % (2 ^ 64)) q.xor_shift ≤ (x * q.mult) % (2 ^ 64) := by
-      unfold shr; exact Nat.div_le_self _ _
-    omega
-  have hxor : ((x * q.mult) % (2 ^ 64) ^^^ shr ((x * q.mult) % (2 ^ 64)) q.xor_shift) < 2 ^ 64 :=
-    xor_lt_two_pow _ _ 64 hmod hshr
-  exact rotl64_lt_two_pow_of_lt _ _ hxor
-
 -- ── Helper: operand digest < 2^64 when rb_val < 2^64 ───────────────────
 
 theorem digest_operands_lt_two_pow (ra_val rb_val : Nat) (hrb : rb_val < 2 ^ 64) :
@@ -69,7 +26,7 @@ theorem digest_operands_lt_two_pow (ra_val rb_val : Nat) (hrb : rb_val < 2 ^ 64)
   unfold digest_operands
   have ha : (ra_val * 0x9e3779b97f4a7c15) % (2 ^ 64) < 2 ^ 64 :=
     Nat.mod_lt _ (Nat.two_pow_pos 64)
-  have hb : rotl rb_val 13 < 2 ^ 64 := rotl_lt_two_pow_of_lt rb_val 13 hrb
+  have hb : rotl rb_val 13 < 2 ^ 64 := rotl_lt_two_pow rb_val 13 hrb
   exact xor_lt_two_pow _ _ 64 ha hb
 
 -- ── Helper: XOR with same key is injective ─────────────────────────────
@@ -104,7 +61,7 @@ theorem update_h_inj_in_h (h1 h2 ra_val rb_val result edge mem call spawn ent_mi
   have hK_lt : K_full < 2 ^ 64 := by
     have hdig : digest_operands ra_val rb_val < 2 ^ 64 :=
       digest_operands_lt_two_pow ra_val rb_val hrb
-    have hrot : rotl result 17 < 2 ^ 64 := rotl_lt_two_pow_of_lt result 17 hres
+    have hrot : rotl result 17 < 2 ^ 64 := rotl_lt_two_pow result 17 hres
     have h1' : (digest_operands ra_val rb_val ^^^ rotl result 17) < 2 ^ 64 :=
       xor_lt_two_pow _ _ 64 hdig hrot
     have h2' : (digest_operands ra_val rb_val ^^^ rotl result 17 ^^^ edge) < 2 ^ 64 :=

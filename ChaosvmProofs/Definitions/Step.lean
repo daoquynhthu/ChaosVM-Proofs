@@ -140,3 +140,25 @@ def run_program_core (st : VmState) (insns : List InsnRuntime) (ctx : ProgramCon
     let (st', res) := step_once st frame ctx
     let (st'', results) := run_program_core st' rest ctx
     (st'', res :: results)
+
+/-- step_core is deterministic: equal inputs → equal outputs. -/
+theorem step_core_deterministic (sigma cfa ddm h pc ctr ctx_digest
+                                edge alpha c0 r0 r1 m : Nat)
+                               (t_sigma t_cfa t_ddm : Nat → Nat)
+                               (g_config : GMixerConfig)
+                               (q_sigma q_cfa q_ddm q_h q_ent : QAvalancheConfig)
+                               (ra_val rb_val result mem_val call spawn ent_mix salt : Nat) :
+    step_core sigma cfa ddm h pc ctr ctx_digest
+              edge alpha c0 r0 r1 m
+              t_sigma t_cfa t_ddm g_config
+              q_sigma q_cfa q_ddm q_h q_ent
+              ra_val rb_val result mem_val call spawn ent_mix salt =
+    step_core sigma cfa ddm h pc ctr ctx_digest
+              edge alpha c0 r0 r1 m
+              t_sigma t_cfa t_ddm g_config
+              q_sigma q_cfa q_ddm q_h q_ent
+              ra_val rb_val result mem_val call spawn ent_mix salt := rfl
+
+/-- run_program_core is deterministic: equal inputs → equal outputs. -/
+theorem run_program_core_deterministic (st : VmState) (insns : List InsnRuntime) (ctx : ProgramContext) :
+    run_program_core st insns ctx = run_program_core st insns ctx := rfl
