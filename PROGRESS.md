@@ -9,7 +9,7 @@
 | T01–T12 (基础定义 + 量子化架构) | `Definitions/` | ✅ Stable |
 | T13 (Init Divergence) — 4 字段条件发散 | `Theorems/T13_InitDivergence.lean` | ✅ |
 | T14 (Poison Cascade) — σ/CFA/DDM 链单射 + H→δ 级联 | `Theorems/T14_PoisonCascade.lean` | ✅ |
-| T15 — pending | — | ⬜ |
+| T15 (No Single Exit) — 架构审计文档 | `Theorems/T15_NoSingleExit.lean` | 📝 文档 (无 Lean 证明) |
 | T16 (R_run Invariance) — decode + bridge 不变性 | `Theorems/T16_RRunInvariance.lean` | ✅ |
 | T17 (Functional Equivalence) — v_t 输出与 VM 状态无关 | `Theorems/T17_FunctionalEquivalence.lean` | ✅ |
 | K3 (Bridge State Dependency) — σ/DDM/c1_t 各不相同 | `Theorems/K3_BridgeStateDependency.lean` | ✅ |
@@ -18,6 +18,14 @@
 ## 构建状态
 
 `lake build ChaosvmProofs` — 37 jobs, 0 errors, 0 warnings ✅
+
+## 待补强
+
+| 项目 | 优先级 | 工作量 | 计划文件 |
+|------|--------|--------|----------|
+| **L1**: phi_op_inv 模型补齐 → T17 重述 | P1 | 2–3h | `plans/T15_phi_gap_plan.md` |
+| **L2**: decode 状态依赖非线性项 (Rust+Lean) | P2 | 4–6h | `plans/T15_phi_gap_plan.md` |
+| **L3**: T15 形式化 (NoExit typeclass + 证明) | P3 | 3–5h | `plans/T15_phi_gap_plan.md` |
 
 ## 关键修复记录
 
