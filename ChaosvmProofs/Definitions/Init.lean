@@ -45,7 +45,11 @@ theorem init_poisoned_zero_equals_clean (k0 k1 r0 r1 : Nat) (qσ qC qD qH : QAva
   unfold init_poisoned
   simp
 
-theorem init_poisoned_diverges (k0 k1 r0 r1 pσ pC pD : Nat) (qσ qC qD qH : QAvalancheConfig)
+/-- Structural divergence: poison metadata fields (poison_sigma/cfa/ddm) differ.
+    This proves struct inequality but NOT state-value divergence (sigma0/cfa0/ddm0/h0 may
+    theoretically cancel via XOR). See `init_poisoned_sigma0_diverges` etc. for conditional
+    state-value divergence. -/
+theorem init_poisoned_structurally_differs (k0 k1 r0 r1 pσ pC pD : Nat) (qσ qC qD qH : QAvalancheConfig)
     (hp : pσ ≠ 0 ∨ pC ≠ 0 ∨ pD ≠ 0) :
     init_poisoned k0 k1 r0 r1 pσ pC pD qσ qC qD qH ≠ init k0 k1 r0 r1 qσ qC qD qH := by
   unfold init_poisoned
@@ -106,3 +110,114 @@ theorem init_poisoned_diverges (k0 k1 r0 r1 pσ pC pD : Nat) (qσ qC qD qH : QAv
         poison_sigma := pσ, poison_cfa := pC, poison_ddm := pD }).poison_ddm = (init k0 k1 r0 r1 qσ qC qD qH).poison_ddm := by rw [h_eq]
     rw [h_pd, h_clean_pd] at h_pd_eq
     exact hpD h_pd_eq
+
+theorem xor_cancel_right (a x : Nat) : x = (a ^^^ x) ^^^ a := by
+  calc
+    x = x ^^^ 0 := by simp
+    _ = x ^^^ (a ^^^ a) := by simp
+    _ = (x ^^^ a) ^^^ a := by rw [Nat.xor_assoc]
+    _ = (a ^^^ x) ^^^ a := by rw [Nat.xor_comm x a]
+
+/-- T13b lemma: sigma0 diverges if qAvalanche of the σ poison seed ≠ 0. -/
+theorem init_poisoned_sigma0_diverges (k0 k1 r0 r1 pσ pC pD : Nat) (qσ qC qD qH : QAvalancheConfig)
+    (hp : pσ ≠ 0 ∨ pC ≠ 0 ∨ pD ≠ 0)
+    (h : qAvalanche (Nat.lor (shl pσ 56) (Nat.lor (shl pC 48) (shl pD 40)) ^^^ r0 ^^^ rotl r1 13 ^^^ 0x9e3779b97f4a7c15) qσ ≠ 0) :
+    (init_poisoned k0 k1 r0 r1 pσ pC pD qσ qC qD qH).sigma0 ≠ (init k0 k1 r0 r1 qσ qC qD qH).sigma0 := by
+  let clean := init k0 k1 r0 r1 qσ qC qD qH
+  unfold init_poisoned
+  have h_not_zero : ¬ (pσ = 0 ∧ pC = 0 ∧ pD = 0) := by
+    intro hz; rcases hz with ⟨hσ, hC, hD⟩
+    rcases hp with (hσ' | hC' | hD')
+    · exact hσ' hσ
+    · exact hC' hC
+    · exact hD' hD
+  rw [if_neg h_not_zero]
+  intro h_eq; simp at h_eq
+  have h_eq_clean : clean.sigma0 ^^^ qAvalanche (Nat.lor (shl pσ 56) (Nat.lor (shl pC 48) (shl pD 40)) ^^^ r0 ^^^ rotl r1 13 ^^^ 0x9e3779b97f4a7c15) qσ = clean.sigma0 := by
+    simpa [clean] using h_eq
+  have h_av_zero : qAvalanche (Nat.lor (shl pσ 56) (Nat.lor (shl pC 48) (shl pD 40)) ^^^ r0 ^^^ rotl r1 13 ^^^ 0x9e3779b97f4a7c15) qσ = 0 := by
+    calc
+      qAvalanche (Nat.lor (shl pσ 56) (Nat.lor (shl pC 48) (shl pD 40)) ^^^ r0 ^^^ rotl r1 13 ^^^ 0x9e3779b97f4a7c15) qσ
+          = ((clean.sigma0 ^^^ qAvalanche (Nat.lor (shl pσ 56) (Nat.lor (shl pC 48) (shl pD 40)) ^^^ r0 ^^^ rotl r1 13 ^^^ 0x9e3779b97f4a7c15) qσ) ^^^ clean.sigma0) :=
+        xor_cancel_right clean.sigma0 (qAvalanche (Nat.lor (shl pσ 56) (Nat.lor (shl pC 48) (shl pD 40)) ^^^ r0 ^^^ rotl r1 13 ^^^ 0x9e3779b97f4a7c15) qσ)
+      _ = clean.sigma0 ^^^ clean.sigma0 := by rw [h_eq_clean]
+      _ = 0 := Nat.xor_self _
+  exact h h_av_zero
+
+/-- T13c lemma: cfa0 diverges if qAvalanche of the CFA poison seed ≠ 0. -/
+theorem init_poisoned_cfa0_diverges (k0 k1 r0 r1 pσ pC pD : Nat) (qσ qC qD qH : QAvalancheConfig)
+    (hp : pσ ≠ 0 ∨ pC ≠ 0 ∨ pD ≠ 0)
+    (h : qAvalanche (Nat.lor (shl pσ 56) (Nat.lor (shl pC 48) (shl pD 40)) ^^^ r0 ^^^ rotl r1 23 ^^^ 0xbf58476d1ce4e5b9) qC ≠ 0) :
+    (init_poisoned k0 k1 r0 r1 pσ pC pD qσ qC qD qH).cfa0 ≠ (init k0 k1 r0 r1 qσ qC qD qH).cfa0 := by
+  let clean := init k0 k1 r0 r1 qσ qC qD qH
+  unfold init_poisoned
+  have h_not_zero : ¬ (pσ = 0 ∧ pC = 0 ∧ pD = 0) := by
+    intro hz; rcases hz with ⟨hσ, hC, hD⟩
+    rcases hp with (hσ' | hC' | hD')
+    · exact hσ' hσ
+    · exact hC' hC
+    · exact hD' hD
+  rw [if_neg h_not_zero]
+  intro h_eq; simp at h_eq
+  have h_eq_clean : clean.cfa0 ^^^ qAvalanche (Nat.lor (shl pσ 56) (Nat.lor (shl pC 48) (shl pD 40)) ^^^ r0 ^^^ rotl r1 23 ^^^ 0xbf58476d1ce4e5b9) qC = clean.cfa0 := by
+    simpa [clean] using h_eq
+  have h_av_zero : qAvalanche (Nat.lor (shl pσ 56) (Nat.lor (shl pC 48) (shl pD 40)) ^^^ r0 ^^^ rotl r1 23 ^^^ 0xbf58476d1ce4e5b9) qC = 0 := by
+    calc
+      qAvalanche (Nat.lor (shl pσ 56) (Nat.lor (shl pC 48) (shl pD 40)) ^^^ r0 ^^^ rotl r1 23 ^^^ 0xbf58476d1ce4e5b9) qC
+          = ((clean.cfa0 ^^^ qAvalanche (Nat.lor (shl pσ 56) (Nat.lor (shl pC 48) (shl pD 40)) ^^^ r0 ^^^ rotl r1 23 ^^^ 0xbf58476d1ce4e5b9) qC) ^^^ clean.cfa0) :=
+        xor_cancel_right clean.cfa0 (qAvalanche (Nat.lor (shl pσ 56) (Nat.lor (shl pC 48) (shl pD 40)) ^^^ r0 ^^^ rotl r1 23 ^^^ 0xbf58476d1ce4e5b9) qC)
+      _ = clean.cfa0 ^^^ clean.cfa0 := by rw [h_eq_clean]
+      _ = 0 := Nat.xor_self _
+  exact h h_av_zero
+
+/-- T13d lemma: ddm0 diverges if qAvalanche of the DDM poison seed ≠ 0. -/
+theorem init_poisoned_ddm0_diverges (k0 k1 r0 r1 pσ pC pD : Nat) (qσ qC qD qH : QAvalancheConfig)
+    (hp : pσ ≠ 0 ∨ pC ≠ 0 ∨ pD ≠ 0)
+    (h : qAvalanche (Nat.lor (shl pσ 56) (Nat.lor (shl pC 48) (shl pD 40)) ^^^ r0 ^^^ rotl r1 31 ^^^ 0xda6b7f7c5e4d3a1b) qD ≠ 0) :
+    (init_poisoned k0 k1 r0 r1 pσ pC pD qσ qC qD qH).ddm0 ≠ (init k0 k1 r0 r1 qσ qC qD qH).ddm0 := by
+  let clean := init k0 k1 r0 r1 qσ qC qD qH
+  unfold init_poisoned
+  have h_not_zero : ¬ (pσ = 0 ∧ pC = 0 ∧ pD = 0) := by
+    intro hz; rcases hz with ⟨hσ, hC, hD⟩
+    rcases hp with (hσ' | hC' | hD')
+    · exact hσ' hσ
+    · exact hC' hC
+    · exact hD' hD
+  rw [if_neg h_not_zero]
+  intro h_eq; simp at h_eq
+  have h_eq_clean : clean.ddm0 ^^^ qAvalanche (Nat.lor (shl pσ 56) (Nat.lor (shl pC 48) (shl pD 40)) ^^^ r0 ^^^ rotl r1 31 ^^^ 0xda6b7f7c5e4d3a1b) qD = clean.ddm0 := by
+    simpa [clean] using h_eq
+  have h_av_zero : qAvalanche (Nat.lor (shl pσ 56) (Nat.lor (shl pC 48) (shl pD 40)) ^^^ r0 ^^^ rotl r1 31 ^^^ 0xda6b7f7c5e4d3a1b) qD = 0 := by
+    calc
+      qAvalanche (Nat.lor (shl pσ 56) (Nat.lor (shl pC 48) (shl pD 40)) ^^^ r0 ^^^ rotl r1 31 ^^^ 0xda6b7f7c5e4d3a1b) qD
+          = ((clean.ddm0 ^^^ qAvalanche (Nat.lor (shl pσ 56) (Nat.lor (shl pC 48) (shl pD 40)) ^^^ r0 ^^^ rotl r1 31 ^^^ 0xda6b7f7c5e4d3a1b) qD) ^^^ clean.ddm0) :=
+        xor_cancel_right clean.ddm0 (qAvalanche (Nat.lor (shl pσ 56) (Nat.lor (shl pC 48) (shl pD 40)) ^^^ r0 ^^^ rotl r1 31 ^^^ 0xda6b7f7c5e4d3a1b) qD)
+      _ = clean.ddm0 ^^^ clean.ddm0 := by rw [h_eq_clean]
+      _ = 0 := Nat.xor_self _
+  exact h h_av_zero
+
+/-- T13e lemma: h0 diverges if qAvalanche of the H poison seed ≠ 0. -/
+theorem init_poisoned_h0_diverges (k0 k1 r0 r1 pσ pC pD : Nat) (qσ qC qD qH : QAvalancheConfig)
+    (hp : pσ ≠ 0 ∨ pC ≠ 0 ∨ pD ≠ 0)
+    (h : qAvalanche (Nat.lor (shl pσ 56) (Nat.lor (shl pC 48) (shl pD 40)) ^^^ r0 ^^^ rotl r1 43 ^^^ 0xef4a3b2c1d0e9f8a) qH ≠ 0) :
+    (init_poisoned k0 k1 r0 r1 pσ pC pD qσ qC qD qH).h0 ≠ (init k0 k1 r0 r1 qσ qC qD qH).h0 := by
+  let clean := init k0 k1 r0 r1 qσ qC qD qH
+  unfold init_poisoned
+  have h_not_zero : ¬ (pσ = 0 ∧ pC = 0 ∧ pD = 0) := by
+    intro hz; rcases hz with ⟨hσ, hC, hD⟩
+    rcases hp with (hσ' | hC' | hD')
+    · exact hσ' hσ
+    · exact hC' hC
+    · exact hD' hD
+  rw [if_neg h_not_zero]
+  intro h_eq; simp at h_eq
+  have h_eq_clean : clean.h0 ^^^ qAvalanche (Nat.lor (shl pσ 56) (Nat.lor (shl pC 48) (shl pD 40)) ^^^ r0 ^^^ rotl r1 43 ^^^ 0xef4a3b2c1d0e9f8a) qH = clean.h0 := by
+    simpa [clean] using h_eq
+  have h_av_zero : qAvalanche (Nat.lor (shl pσ 56) (Nat.lor (shl pC 48) (shl pD 40)) ^^^ r0 ^^^ rotl r1 43 ^^^ 0xef4a3b2c1d0e9f8a) qH = 0 := by
+    calc
+      qAvalanche (Nat.lor (shl pσ 56) (Nat.lor (shl pC 48) (shl pD 40)) ^^^ r0 ^^^ rotl r1 43 ^^^ 0xef4a3b2c1d0e9f8a) qH
+          = ((clean.h0 ^^^ qAvalanche (Nat.lor (shl pσ 56) (Nat.lor (shl pC 48) (shl pD 40)) ^^^ r0 ^^^ rotl r1 43 ^^^ 0xef4a3b2c1d0e9f8a) qH) ^^^ clean.h0) :=
+        xor_cancel_right clean.h0 (qAvalanche (Nat.lor (shl pσ 56) (Nat.lor (shl pC 48) (shl pD 40)) ^^^ r0 ^^^ rotl r1 43 ^^^ 0xef4a3b2c1d0e9f8a) qH)
+      _ = clean.h0 ^^^ clean.h0 := by rw [h_eq_clean]
+      _ = 0 := Nat.xor_self _
+  exact h h_av_zero
