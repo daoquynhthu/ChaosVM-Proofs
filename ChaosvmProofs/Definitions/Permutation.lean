@@ -1,4 +1,5 @@
 import ChaosvmProofs.Definitions.Helpers
+import ChaosvmProofs.Definitions.QAvalanche
 import Init.Omega
 
 /-! # P(x,s) bijective affine map (Rust: `sem_share.rs:56`, `reg_map.rs`). -/
@@ -141,22 +142,19 @@ theorem P_mod_bijective (a b : Nat) (ha_odd : a % 2 = 1) :
   · exact P_mod_injective a b ha_odd
   · exact P_mod_surjective a b ha_odd
 
-/-- P_of_state(x, state) approximates Rust `permute(val, state, q)`.
+/-- `P_of_state(x, state)` — legacy approximation of `permute` without QAvalanche.
+    Replaced by `permute` for full-fidelity proofs, but retained for backward
+    compatibility and audit-trace documentation.
 
-    Rust derives (a,b) via `q_avalanche(state, q)`. Lean uses `state` directly
-    as the entropy source (bypassing the abstract QAvalanche). Since `q_avalanche`
-    is modeled as identity in the formal proof, both versions coincide algebraically.
-
-    The key property (a is odd → bijective) holds in both versions:
-      Rust:  a = (q_avalanche(state,q) & 0xFF) | 1  → odd
-      Lean:  a = (state & 0xFF) | 1                  → odd
-    -/
+    `permute` differs by applying `qAvalanche(state, q)` before extracting `(a,b)`,
+    while `P_of_state` uses `state` directly. Both produce odd `a` and thus both
+    are bijective on Fin 256. See `permute_bijective`. -/
 def P_of_state (x state : Nat) : Nat :=
   let a := Nat.lor (state % 256) 1
   let b := (state / 256) % 256
   P_mod x a b
 
-/-- P_of_state is bijective on Fin 256 (a is always odd). -/
+/-- `P_of_state` is bijective on Fin 256 (a always odd). -/
 theorem P_of_state_bijective (state : Nat) :
     Function.Injective (λ (x : Fin 256) => P_of_state x.val state) ∧
     (∀ (y : Fin 256), ∃ (x : Fin 256), P_of_state x.val state = y.val) := by
@@ -176,6 +174,30 @@ theorem affine_map_bijective (a b : Nat) (ha_odd : a % 2 = 1) :
     Function.Injective (λ (r : Fin 256) => affine_map r.val a b) ∧
     (∀ (y : Fin 256), ∃ (r : Fin 256), affine_map r.val a b = y.val) :=
   P_mod_bijective a b ha_odd
+
+/-- `permute(val, state, q)` matches Rust `permute(val, state, q)`:
+    mix = q_avalanche(state, q), a = mix_lo | 1, b = mix_byte1.
+    Used for `permute(anchor, 0, q_sigma)` etc. in SemShare. -/
+def permute (val state : Nat) (q : QAvalancheConfig) : Nat :=
+  let mix := qAvalanche state q
+  let a := Nat.lor (mix % 256) 1
+  let b := (mix / 256) % 256
+  P_mod val a b
+
+/-- `permute(·, state, q)` is bijective on Fin 256 for any state and q.
+    Since `a` is always odd (low bit set to 1), bijectivity follows from
+    `P_mod_bijective`. -/
+theorem permute_bijective (state : Nat) (q : QAvalancheConfig) :
+    Function.Injective (λ (x : Fin 256) => permute x.val state q) ∧
+    (∀ (y : Fin 256), ∃ (x : Fin 256), permute x.val state q = y.val) := by
+  unfold permute
+  let mix := qAvalanche state q
+  let a := Nat.lor (mix % 256) 1
+  have ha_odd : a % 2 = 1 := by
+    have h_all : ∀ x < 256, (Nat.lor x 1) % 2 = 1 := by decide
+    exact h_all (mix % 256) (Nat.mod_lt _ (by decide : 0 < 256))
+  let b := (mix / 256) % 256
+  exact P_mod_bijective a b ha_odd
 
 /-- IsOdd predicate. -/
 def IsOdd (a : Nat) : Prop := a % 2 = 1

@@ -90,8 +90,8 @@ def step_core (sigma cfa ddm h pc ctr ctx_digest
   let (z_lo, z_hi) := gRounds x y w g_config
   let zf     := decompose_safe z_lo z_hi
   let c2     := c2_from_edge edge
-  let c0_eff := bridge_i41 c0 anchor c1_t c2 sigma ddm
-  let v_t    := decode_i41 c0_eff c1_t c2 sigma ddm
+  let c0_eff := bridge_i41 c0 anchor c1_t c2 sigma ddm q_sigma q_ddm
+  let v_t    := decode_i41 c0_eff c1_t c2 sigma ddm q_sigma q_ddm
   let result_for_su := result ^^^ Nat.lor (shl zf.sem_decomp 8) zf.ctrl_edge_perm
   let ns := update_state sigma cfa ddm h z_lo z_hi ra_val rb_val
               result_for_su edge mem_val call spawn ent_mix ctr r0 salt

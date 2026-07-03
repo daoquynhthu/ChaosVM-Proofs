@@ -16,17 +16,19 @@ The formal model **abstracts away the QAvalanche parameters** (`q_sigma`, `q_ddm
   because each P-term appears exactly twice and cancels by XOR self-cancellation.
 -/
 
-/-- c0 = u ⊕ P(anchor,0) ⊕ P(c2,0). -/
-def encode_c0_i41 (u anchor c2 : Nat) : Nat :=
-  u ^^^ (P_mod anchor 1 0) ^^^ (P_mod c2 1 0)
+/-- c0 = u ⊕ permute(anchor, 0, q_sigma) ⊕ permute(c2, 0, q_ddm).
+    Matches Rust `encode_c0_i41` with full QAvalanche. -/
+def encode_c0_i41 (u anchor c2 : Nat) (q_sigma q_ddm : QAvalancheConfig) : Nat :=
+  u ^^^ (permute anchor 0 q_sigma) ^^^ (permute c2 0 q_ddm)
 
-/-- J_t bridge. -/
-def bridge_i41 (c0 anchor c1_t c2 σ DDM : Nat) : Nat :=
-  c0 ^^^ (P_mod c1_t 1 σ) ^^^ (P_mod anchor 1 0) ^^^ (P_mod c2 1 DDM) ^^^ (P_mod c2 1 0)
+/-- J_t bridge with full permute (matches Rust `permute` calls). -/
+def bridge_i41 (c0 anchor c1_t c2 σ DDM : Nat) (q_sigma q_ddm : QAvalancheConfig) : Nat :=
+  c0 ^^^ (permute c1_t σ q_sigma) ^^^ (permute anchor 0 q_sigma)
+      ^^^ (permute c2 DDM q_ddm) ^^^ (permute c2 0 q_ddm)
 
-/-- Decode: v = c0_eff ⊕ P(c1,σ) ⊕ P(c2,DDM). -/
-def decode_i41 (c0_eff c1_t c2 σ DDM : Nat) : Nat :=
-  c0_eff ^^^ (P_mod c1_t 1 σ) ^^^ (P_mod c2 1 DDM)
+/-- Decode: v = c0_eff ⊕ permute(c1,σ,q_sigma) ⊕ permute(c2,DDM,q_ddm). -/
+def decode_i41 (c0_eff c1_t c2 σ DDM : Nat) (q_sigma q_ddm : QAvalancheConfig) : Nat :=
+  c0_eff ^^^ (permute c1_t σ q_sigma) ^^^ (permute c2 DDM q_ddm)
 
 /-- XOR swap: x ^^^ y ^^^ x = y. -/
 theorem swap_pair (x y : Nat) : x ^^^ y ^^^ x = y := by
@@ -37,14 +39,17 @@ theorem swap_pair (x y : Nat) : x ^^^ y ^^^ x = y := by
     _ = 0 ^^^ y := by rw [Nat.xor_self]
     _ = y := by simp
 
-/-- Core invariant: decode(bridge(encode(op))) = op ∀ σ,DDM,c1,anchor,c2. -/
-theorem bridge_decode_invariant (u anchor c1_t c2 σ DDM : Nat) :
-    decode_i41 (bridge_i41 (encode_c0_i41 u anchor c2) anchor c1_t c2 σ DDM) c1_t c2 σ DDM = u := by
+/-- Core invariant: decode(bridge(encode(op))) = op ∀ σ,DDM,c1,anchor,c2,q_sigma,q_ddm.
+    The q_avalanche-based permute terms cancel pairwise by XOR self-cancellation,
+    exactly as the abstract P_mod terms did. -/
+theorem bridge_decode_invariant (u anchor c1_t c2 σ DDM : Nat) (q_sigma q_ddm : QAvalancheConfig) :
+    decode_i41 (bridge_i41 (encode_c0_i41 u anchor c2 q_sigma q_ddm) anchor c1_t c2 σ DDM q_sigma q_ddm)
+               c1_t c2 σ DDM q_sigma q_ddm = u := by
   unfold encode_c0_i41 bridge_i41 decode_i41
-  let A := P_mod anchor 1 0
-  let B := P_mod c2 1 0
-  let C := P_mod c1_t 1 σ
-  let D := P_mod c2 1 DDM
+  let A := permute anchor 0 q_sigma
+  let B := permute c2 0 q_ddm
+  let C := permute c1_t σ q_sigma
+  let D := permute c2 DDM q_ddm
   have hA_cancel : u ^^^ A ^^^ B ^^^ C ^^^ A = u ^^^ B ^^^ C := by
     calc
       u ^^^ A ^^^ B ^^^ C ^^^ A = u ^^^ (A ^^^ B ^^^ C ^^^ A) := by

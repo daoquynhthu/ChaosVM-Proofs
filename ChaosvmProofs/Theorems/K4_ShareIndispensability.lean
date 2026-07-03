@@ -30,16 +30,20 @@ theorem xor_swap_first (a b x : Nat) : a ^^^ (b ^^^ x) = b ^^^ (a ^^^ x) := by
     _ = (b ^^^ a) ^^^ x := by rw [Nat.xor_comm a b]
     _ = b ^^^ (a ^^^ x) := by rw [Nat.xor_assoc]
 
-/-- K4a: Zeroing anchor in bridge gives `u ⊕ P(anchor,1,0)`. -/
-theorem anchor_zeroed (u anchor c1_t c2 σ DDM : Nat) :
-    decode_i41 (bridge_i41 (encode_c0_i41 u anchor c2) 0 c1_t c2 σ DDM) c1_t c2 σ DDM = u ^^^ P_mod anchor 1 0 := by
+/-- K4a: Zeroing anchor in bridge gives `u ⊕ permute(anchor, 0, q_sigma)`. -/
+theorem anchor_zeroed (u anchor c1_t c2 σ DDM : Nat) (q_sigma q_ddm : QAvalancheConfig) :
+    decode_i41 (bridge_i41 (encode_c0_i41 u anchor c2 q_sigma q_ddm) 0 c1_t c2 σ DDM q_sigma q_ddm)
+               c1_t c2 σ DDM q_sigma q_ddm = u ^^^ permute anchor 0 q_sigma := by
   unfold encode_c0_i41 bridge_i41 decode_i41
-  have hP0 : P_mod 0 1 0 = 0 := by unfold P_mod; simp
+  have hP0 : permute 0 0 q_sigma = 0 := by
+    unfold permute
+    have hqz : qAvalanche 0 q_sigma = 0 := qAvalanche_zero q_sigma
+    simp [hqz, P_mod]
   rw [hP0, Nat.xor_zero]
-  let A := P_mod anchor 1 0
-  let B := P_mod c2 1 0
-  let C := P_mod c1_t 1 σ
-  let E := P_mod c2 1 DDM
+  let A := permute anchor 0 q_sigma
+  let B := permute c2 0 q_ddm
+  let C := permute c1_t σ q_sigma
+  let E := permute c2 DDM q_ddm
   have h_inner : B ^^^ (C ^^^ (E ^^^ (B ^^^ (C ^^^ E)))) = 0 := by
     calc
       B ^^^ (C ^^^ (E ^^^ (B ^^^ (C ^^^ E)))) = C ^^^ (B ^^^ (E ^^^ (B ^^^ (C ^^^ E)))) := by
@@ -58,30 +62,36 @@ theorem anchor_zeroed (u anchor c1_t c2 σ DDM : Nat) :
     rw [h_inner, Nat.xor_zero]
   rw [h_main]
 
-/-- Corollary: if `P_mod anchor 1 0 ≠ 0` (i.e. `anchor % 256 ≠ 0`), decode ≠ u. -/
-theorem anchor_zeroed_ne_u (u anchor c1_t c2 σ DDM : Nat) (h : P_mod anchor 1 0 ≠ 0) :
-    decode_i41 (bridge_i41 (encode_c0_i41 u anchor c2) 0 c1_t c2 σ DDM) c1_t c2 σ DDM ≠ u := by
-  rw [anchor_zeroed]
+/-- Corollary: if `permute anchor 0 q_sigma ≠ 0` (i.e. `anchor % 256 ≠ 0`), decode ≠ u. -/
+theorem anchor_zeroed_ne_u (u anchor c1_t c2 σ DDM : Nat) (q_sigma q_ddm : QAvalancheConfig) 
+    (h : permute anchor 0 q_sigma ≠ 0) :
+    decode_i41 (bridge_i41 (encode_c0_i41 u anchor c2 q_sigma q_ddm) 0 c1_t c2 σ DDM q_sigma q_ddm)
+               c1_t c2 σ DDM q_sigma q_ddm ≠ u := by
+  rw [anchor_zeroed u anchor c1_t c2 σ DDM q_sigma q_ddm]
   intro h_eq
   apply h
-  have h_u : u ^^^ P_mod anchor 1 0 = u ^^^ 0 := by
+  have h_u : u ^^^ permute anchor 0 q_sigma = u ^^^ 0 := by
     calc
-      u ^^^ P_mod anchor 1 0 = u := h_eq
+      u ^^^ permute anchor 0 q_sigma = u := h_eq
       _ = u ^^^ 0 := by simp
-  exact xor_left_cancel u (P_mod anchor 1 0) 0 h_u
+  exact xor_left_cancel u (permute anchor 0 q_sigma) 0 h_u
 
-/-- K4b: Zeroing c2 in bridge gives `u ⊕ P(c2,1,0) ⊕ P(0,1,DDM) ⊕ P(c2,1,DDM)`. -/
-theorem c2_zeroed (u anchor c1_t c2 σ DDM : Nat) :
-    decode_i41 (bridge_i41 (encode_c0_i41 u anchor c2) anchor c1_t 0 σ DDM) c1_t c2 σ DDM =
-    u ^^^ P_mod c2 1 0 ^^^ P_mod 0 1 DDM ^^^ P_mod c2 1 DDM := by
+/-- K4b: Zeroing c2 in bridge gives `u ⊕ permute(c2,0,q_ddm) ⊕ permute(0,DDM,q_ddm) ⊕ permute(c2,DDM,q_ddm)`. -/
+theorem c2_zeroed (u anchor c1_t c2 σ DDM : Nat) (q_sigma q_ddm : QAvalancheConfig) :
+    decode_i41 (bridge_i41 (encode_c0_i41 u anchor c2 q_sigma q_ddm) anchor c1_t 0 σ DDM q_sigma q_ddm)
+               c1_t c2 σ DDM q_sigma q_ddm =
+    u ^^^ permute c2 0 q_ddm ^^^ permute 0 DDM q_ddm ^^^ permute c2 DDM q_ddm := by
   unfold encode_c0_i41 bridge_i41 decode_i41
-  have hE : P_mod 0 1 0 = 0 := by unfold P_mod; simp
+  have hE : permute 0 0 q_ddm = 0 := by
+    unfold permute
+    have hqz : qAvalanche 0 q_ddm = 0 := qAvalanche_zero q_ddm
+    simp [hqz, P_mod]
   rw [hE, Nat.xor_zero]
-  let A := P_mod anchor 1 0
-  let B := P_mod c2 1 0
-  let C := P_mod c1_t 1 σ
-  let D := P_mod 0 1 DDM
-  let F := P_mod c2 1 DDM
+  let A := permute anchor 0 q_sigma
+  let B := permute c2 0 q_ddm
+  let C := permute c1_t σ q_sigma
+  let D := permute 0 DDM q_ddm
+  let F := permute c2 DDM q_ddm
   have h_inner2 : A ^^^ (C ^^^ (A ^^^ (D ^^^ (C ^^^ F)))) = D ^^^ F := by
     calc
       A ^^^ (C ^^^ (A ^^^ (D ^^^ (C ^^^ F)))) = C ^^^ (A ^^^ (A ^^^ (D ^^^ (C ^^^ F)))) := by
@@ -99,15 +109,16 @@ theorem c2_zeroed (u anchor c1_t c2 σ DDM : Nat) :
     rw [h_inner2]
   rw [h_main2]
 
-/-- K4c: Zeroing c0 in bridge gives `P(anchor,1,0) ⊕ P(c2,1,0)`. -/
-theorem c0_zeroed (_u anchor c1_t c2 σ DDM : Nat) :
-    decode_i41 (bridge_i41 0 anchor c1_t c2 σ DDM) c1_t c2 σ DDM = P_mod anchor 1 0 ^^^ P_mod c2 1 0 := by
+/-- K4c: Zeroing c0 in bridge gives `permute(anchor,0,q_sigma) ⊕ permute(c2,0,q_ddm)`. -/
+theorem c0_zeroed (_u anchor c1_t c2 σ DDM : Nat) (q_sigma q_ddm : QAvalancheConfig) :
+    decode_i41 (bridge_i41 0 anchor c1_t c2 σ DDM q_sigma q_ddm) c1_t c2 σ DDM q_sigma q_ddm =
+    permute anchor 0 q_sigma ^^^ permute c2 0 q_ddm := by
   unfold bridge_i41 decode_i41
   simp
-  let A := P_mod anchor 1 0
-  let B := P_mod c2 1 0
-  let C := P_mod c1_t 1 σ
-  let D := P_mod c2 1 DDM
+  let A := permute anchor 0 q_sigma
+  let B := permute c2 0 q_ddm
+  let C := permute c1_t σ q_sigma
+  let D := permute c2 DDM q_ddm
   have h_inner_c : C ^^^ (D ^^^ (B ^^^ (C ^^^ D))) = B := by
     calc
       C ^^^ (D ^^^ (B ^^^ (C ^^^ D))) = D ^^^ (C ^^^ (B ^^^ (C ^^^ D))) := by

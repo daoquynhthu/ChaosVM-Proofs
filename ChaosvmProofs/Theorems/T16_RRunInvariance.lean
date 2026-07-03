@@ -21,7 +21,7 @@ import ChaosvmProofs.Definitions.SemShare
 因此解码值 v_t 对任意 R_run 不变。
 -/
 
-/-- T16: R_run 不变性 (Φₜ 共轭).
+/-- T16: R_run 不变性 (Φₜ 共轭)，使用完整 permute (QAvalanche-backed)。
 
     bridge+decode 管线中 σ 和 DDM 项代数消去，使解码后的操作码与当前状态
     及 R_run 初始化参数无关。这是 T08 的直接推论。
@@ -34,7 +34,8 @@ import ChaosvmProofs.Definitions.SemShare
     `c0` 来自编码指令。
 
     因此 `u = encode_c0_i41(c0, anchor, c2)` 对任意 R_run 都是常量：
-    `decode(bridge(encode(u), ...), ...) = u` 对所有 σ, DDM, c1_t 成立。 -/
-theorem T16_rrun_invariance (u anchor c1_t c2 σ DDM : Nat) :
-    decode_i41 (bridge_i41 (encode_c0_i41 u anchor c2) anchor c1_t c2 σ DDM) c1_t c2 σ DDM = u :=
-  bridge_decode_invariant u anchor c1_t c2 σ DDM
+    `decode(bridge(encode(u), ...), ...) = u` 对所有 σ, DDM, c1_t, q_sigma, q_ddm 成立。 -/
+theorem T16_rrun_invariance (u anchor c1_t c2 σ DDM : Nat) (q_sigma q_ddm : QAvalancheConfig) :
+    decode_i41 (bridge_i41 (encode_c0_i41 u anchor c2 q_sigma q_ddm) anchor c1_t c2 σ DDM q_sigma q_ddm)
+               c1_t c2 σ DDM q_sigma q_ddm = u :=
+  bridge_decode_invariant u anchor c1_t c2 σ DDM q_sigma q_ddm
