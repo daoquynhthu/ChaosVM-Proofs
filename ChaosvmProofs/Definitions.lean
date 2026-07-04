@@ -4,6 +4,7 @@ import ChaosvmProofs.Definitions.QAvalanche
 import ChaosvmProofs.Definitions.GMixer
 import ChaosvmProofs.Definitions.HIndex
 import ChaosvmProofs.Definitions.SemShare
+import ChaosvmProofs.Definitions.PhiPerm
 import ChaosvmProofs.Definitions.StateUpdate
 import ChaosvmProofs.Definitions.ZLayout
 import ChaosvmProofs.Definitions.EdgeEncoding

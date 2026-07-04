@@ -1,4 +1,5 @@
 import ChaosvmProofs.Definitions.SemShare
+import ChaosvmProofs.Definitions.PhiPerm
 import ChaosvmProofs.Definitions.Step
 
 set_option maxHeartbeats 50000000
@@ -87,3 +88,12 @@ theorem T17_functional_equivalence (st₁ st₂ : VmState) (insns : List InsnRun
       _ = (step_once st₂ frame ctx).snd :: (run_program_core (step_once st₂ frame ctx).fst rest ctx).snd := by
         rw [hv, h_rest]
       _ = (run_program_core st₂ (frame :: rest) ctx).snd := h_right.symm
+
+/-- T17 full: 完整解码输出（经过 phi_op_inv 置换）对任意两组初始状态相同。
+    即 Rust 的 `phi_op_inv[v_t]`（实际 opcode）不依赖于 VM 内部状态。 -/
+theorem T17_functional_equivalence_full (st₁ st₂ : VmState)
+    (insns : List InsnRuntime) (ctx : ProgramContext) :
+    List.map decode_full (run_program_core st₁ insns ctx).snd =
+    List.map decode_full (run_program_core st₂ insns ctx).snd := by
+  have h := T17_functional_equivalence st₁ st₂ insns ctx
+  rw [h]
