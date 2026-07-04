@@ -20,7 +20,7 @@
 
 ## 构建状态
 
-`lake build ChaosvmProofs` — 40 jobs, 0 errors, 0 warnings ✅
+`lake build ChaosvmProofs` — 41 jobs, 0 errors, 0 warnings ✅
 
 ## 待补强
 
@@ -32,6 +32,7 @@
 | **G1**: T13 seed 非零证明 + qAvalanche_ne_zero_of_ne_zero | P2 | 1–2h | ✅ 已完成 |
 | **G2**: T14 联合发散 — h divergence → (h_next, d_σ, d_C, d_D) all differ | P2 | 3–4h | ✅ 已完成 |
 | **G3**: 分支纠缠 — BranchEntangle.lean: ent_mix_2/3 定义 + injectivity + shadow independence | P3 | 4–6h | ✅ 已完成 |
+| **G7**: 传感器累加正确性 — SensorAccum.lean: bounded + monotonic + detection_increases + batch_bound | P3 | 3–4h | ✅ 已完成 |
 
 ## 关键修复记录
 
@@ -51,6 +52,34 @@
 **审计报告更新**:
 - 38 jobs 全部编译通过
 - 定理覆盖总览表（T01–T17 + K1–K4 全部 ✅）
+
+### 2026-07-04 — G7 闭合: SensorAccum.lean 传感器累加正确性
+
+**新增文件**: `Definitions/SensorAccum.lean`
+
+**核心定义**:
+1. `SensorResult` — 单次检测结果 (s,c,d ∈ [0,3])
+2. `WeightedSensor` — 加权传感器 (result + weight ≥ 1)
+3. `PoisonAccumulator` — 三通道累加器 (p_sigma, p_cfa, p_ddm ≤ 255)
+4. `accum_channel` — 单通道饱和累加
+5. `accumulate` / `accumulate_all` — 单次/批量累加
+
+**证明 (10 个定理, 0 sorrys)**:
+1. `accum_channel_bound` — 单通道 ≤ 255
+2. `accum_channel_mono_input` — 输入单调
+3. `accum_channel_mono_acc` — 累加器单调
+4. `accum_channel_ge_acc` — 累加器不退化
+5. `accum_channel_lower` — 下界 p+x
+6. `accumulate_bound` — 三通道有界
+7. `accumulate_mono_result` — 结果单调性
+8. `accumulate_increases_on_detection` — 检测到时 σ 严格递增
+9. `accumulate_nonzero_from_zero` — 零起点 + 非零输入 → 非零
+10. `accumulate_all_bound` — 批量有界
+
+**技术要点**:
+- omega 无法处理非线性乘法 (`w * x`)，通过 `Nat.mul_pos` + `Nat.lt_add_of_pos_right` 绕过
+- `0 + x > 0` 与 `0 < x` 不定义等价，需 `simp only [Nat.zero_add]` 规范化
+- `zeroAccum` 结构体投影对 omega 不透明，直接使用 `zeroAccum.sigma_bound` 等字段提供证明
 
 ### 2026-07-04 — G3 闭合: BranchEntangle.lean 分支纠缠模型
 

@@ -1,10 +1,10 @@
 # 证明链审计报告 — 2026-07-04
 
-审计范围: 22 定理文件 + 13 定义文件，~4000 行 Lean 代码
+审计范围: 23 定理文件 + 14 定义文件，~4200 行 Lean 代码
 
 ## 依赖图完整性
 
-无循环依赖 ✓ | 39 jobs 全部编译通过 ✓ | 0 `axiom`/`sorry`/`admit` ✓
+无循环依赖 ✓ | 41 jobs 全部编译通过 ✓ | 0 `axiom`/`sorry`/`admit` ✓
 
 ## L1 闭包（2026-07-04）
 
@@ -73,7 +73,7 @@ phi_op_inv gap 已闭合（静态版本）：
 
 | Gap | 缺口 | 说明 |
 |-----|------|------|
-| **G7** | 传感器积累正确性 | 10 个传感器 (s,c,d) 加权饱和累加，完全未建模 |
+| **G7** | 传感器积累正确性 | 10 个传感器 (s,c,d) 加权饱和累加，完全未建模 | ✅ 已完成 |
 | **G8** | 硬件绑定 / 防重放 | R_run 熵源收集、disk_nonce，属于实现层 |
 
 ## L2 决策记录
@@ -102,5 +102,6 @@ L2（修改 Rust decode_i41 打破 XOR 对称）已评估并**跳过**：
 | T17 (v_t) | ✅ | v_t 输出无关性 |
 | T17 (full) | ✅ | decode_full 输出无关性 |
 | K1–K4 | ✅ | 关键性质（share 依赖、消去、不可替代性） |
+| SensorAccum | ✅ | 传感器累加有界性 + 单调性 + 检测递增 + 批量有界 |
 | PhiOpStep (core) | ✅ | mod_inv_odd_correct + affine_roundtrip_core（native_decide 验证） |
 | PhiOpStep (roundtrip) | ✅ | phi_op_inv_step_roundtrip + phi_op_step_inv_roundtrip |
