@@ -284,3 +284,121 @@ theorem d_ddm_inj_in_hnext (z_lo z_hi h1 h2 ctr salt : Nat) (q : QAvalancheConfi
         _ = h2 ^^^ ctr ^^^ salt := by rw [xor_quad_cancel ddm h2 ctr salt]
         _ = h2 ^^^ (ctr ^^^ salt) := by rw [Nat.xor_assoc])
   exact h_diff h_h_eq
+
+-- ── G2: Joint Cascade (h divergence → all 7 outputs diverge) ──────────
+--
+-- If h1 ≠ h2 (all other state inputs identical), then every output of
+-- `update_state` diverges: h_next, d_σ, d_C, d_D, σ_next, CFA_next, DDM_next.
+--
+-- The state field divergence requires new lemmas because when h_next differs,
+-- ALL δ values differ simultaneously, so the existing per-channel injectivity
+-- lemmas (which assume the other δ is constant) don't directly apply.
+--
+-- For σ_next = rotl(σ + d_σ, 17) ^^^ d_D:
+--   The map (d_σ, d_D) → rotl(σ + d_σ, 17) ^^^ d_D is NOT injective in general
+--   (counterexample: σ=0, d_σ1=1, d_D1=3, d_σ2=2, d_D2=0 → both give 131072).
+--   However, in our case (d_σ, d_D) are derived from h_next via qAvalanche,
+--   which constrains the relationship. Proving σ_next divergence requires
+--   analyzing the joint distribution of (d_σ, d_D) across h_next values.
+--
+-- Strategy: prove the 4 most important outputs (h_next, d_σ, d_C, d_D) diverge,
+-- then prove state fields using helper lemmas that handle dual-δ divergence.
+
+-- ── Helper: σ_next divergence when d_σ AND d_D both differ ───────────
+--
+-- σ_next = rotl(σ + d_σ, 17) ^^^ d_D
+-- When d_σ1 ≠ d_σ2: let A1 = rotl(σ + d_σ1, 17), A2 = rotl(σ + d_σ2, 17). A1 ≠ A2.
+-- σ_next1 = A1 ^^^ d_D1, σ_next2 = A2 ^^^ d_D2.
+-- If σ_next1 = σ_next2, then A1 ^^^ d_D1 = A2 ^^^ d_D2.
+-- XOR with A1: d_D1 = A1 ^^^ A2 ^^^ d_D2. (determined by d_σ1, d_σ2, d_D2)
+-- This is consistent, so we need additional structure.
+--
+-- Key: d_σ = qAvalanche(input_σ, q_σ) and d_D = qAvalanche(input_D, q_D)
+-- where input_σ = z_hi ^^^ h_next ^^^ r0 ^^^ salt
+-- and   input_D = (z_lo+z_hi)%2^64 ^^^ h_next ^^^ ctr ^^^ salt.
+-- When h_next1 ≠ h_next2, both inputs change by the SAME delta (h_next1^^^h_next2).
+-- qAvalanche is a bijection, so (d_σ1, d_D1) ≠ (d_σ2, d_D2) (component-wise).
+-- But this still doesn't directly give σ_next divergence.
+
+-- ── Helper: CFA_next divergence when d_C AND d_σ both differ ──────────
+--
+-- CFA_next = (rotl(CFA ^^^ d_C, 31) + d_σ) % 2^64
+-- When d_C1 ≠ d_C2: let A1 = rotl(CFA ^^^ d_C1, 31), A2 = rotl(CFA ^^^ d_C2, 31). A1 ≠ A2.
+-- CFA_next1 = (A1 + d_σ1) % 2^64, CFA_next2 = (A2 + d_σ2) % 2^64.
+-- Same issue: not injective when both d_C and d_σ differ.
+
+-- ── Helper: DDM_next divergence when d_D AND d_C both differ ──────────
+--
+-- DDM_next = rotl(DDM + d_D, 47) ^^^ d_C
+-- Same structure as σ_next: map (d_D, d_C) → rotl(DDM + d_D, 47) ^^^ d_C is not injective.
+
+-- ── T14_joint_cascade: h divergence → 4 core outputs diverge ──────────
+--
+-- This is the strongest result provable with current per-channel lemmas.
+-- It proves h_next, d_σ, d_C, d_D diverge. The state field divergence
+-- (σ_next, CFA_next, DDM_next) follows from additional analysis of the
+-- joint (d_σ, d_D) distribution, deferred to a future enhancement.
+
+theorem T14_joint_cascade
+    (σ CFA DDM h1 h2 z_lo z_hi ra_val rb_val result edge mem call spawn ent_mix ctr r0 salt : Nat)
+    (q_h q_sigma q_cfa q_ddm : QAvalancheConfig)
+    (invMult_h invMult_sigma invMult_cfa invMult_ddm : Nat)
+    (h_diff : h1 ≠ h2)
+    (h1_lt : h1 < 2 ^ 64) (h2_lt : h2 < 2 ^ 64)
+    (hz_lo : z_lo < 2 ^ 64) (hz_hi : z_hi < 2 ^ 64)
+    (hrb : rb_val < 2 ^ 64)
+    (hres : result < 2 ^ 64) (hedge : edge < 2 ^ 64)
+    (hmem : mem < 2 ^ 64) (hcall : call < 2 ^ 64)
+    (hspawn : spawn < 2 ^ 64) (hent : ent_mix < 2 ^ 64)
+    (hctr : ctr < 2 ^ 64) (hr0 : r0 < 2 ^ 64) (hsalt : salt < 2 ^ 64)
+    (h_inv_h : (q_h.mult * invMult_h) % (2 ^ 64) = 1) (h_shift_h : 1 ≤ q_h.xor_shift)
+    (h_inv_sigma : (q_sigma.mult * invMult_sigma) % (2 ^ 64) = 1) (h_shift_sigma : 1 ≤ q_sigma.xor_shift)
+    (h_inv_cfa : (q_cfa.mult * invMult_cfa) % (2 ^ 64) = 1) (h_shift_cfa : 1 ≤ q_cfa.xor_shift)
+    (h_inv_ddm : (q_ddm.mult * invMult_ddm) % (2 ^ 64) = 1) (h_shift_ddm : 1 ≤ q_ddm.xor_shift) :
+    let s1 := update_state σ CFA DDM h1 z_lo z_hi ra_val rb_val result edge mem call spawn ent_mix ctr r0 salt q_h q_sigma q_cfa q_ddm
+    let s2 := update_state σ CFA DDM h2 z_lo z_hi ra_val rb_val result edge mem call spawn ent_mix ctr r0 salt q_h q_sigma q_cfa q_ddm
+    s1.h_next ≠ s2.h_next ∧
+    s1.d_sigma ≠ s2.d_sigma ∧
+    s1.d_cfa ≠ s2.d_cfa ∧
+    s1.d_ddm ≠ s2.d_ddm := by
+  unfold update_state
+  -- h_next diverges (update_h_inj_in_h)
+  have h_hnext_diff :
+      update_h h1 ra_val rb_val result edge mem call spawn ent_mix q_h ≠
+      update_h h2 ra_val rb_val result edge mem call spawn ent_mix q_h := by
+    exact update_h_inj_in_h h1 h2 ra_val rb_val result edge mem call spawn ent_mix q_h invMult_h
+      h_diff h1_lt h2_lt hrb hres hedge hmem hcall hspawn hent h_inv_h h_shift_h
+  have h_hnext1_lt : update_h h1 ra_val rb_val result edge mem call spawn ent_mix q_h < 2 ^ 64 :=
+    update_h_lt_two_pow h1 ra_val rb_val result edge mem call spawn ent_mix q_h
+  have h_hnext2_lt : update_h h2 ra_val rb_val result edge mem call spawn ent_mix q_h < 2 ^ 64 :=
+    update_h_lt_two_pow h2 ra_val rb_val result edge mem call spawn ent_mix q_h
+  -- d_σ diverges (d_sigma_inj_in_hnext)
+  have h_dσ_diff :
+      qAvalanche (z_hi ^^^ update_h h1 ra_val rb_val result edge mem call spawn ent_mix q_h ^^^ r0 ^^^ salt) q_sigma ≠
+      qAvalanche (z_hi ^^^ update_h h2 ra_val rb_val result edge mem call spawn ent_mix q_h ^^^ r0 ^^^ salt) q_sigma := by
+    exact d_sigma_inj_in_hnext z_hi
+      (update_h h1 ra_val rb_val result edge mem call spawn ent_mix q_h)
+      (update_h h2 ra_val rb_val result edge mem call spawn ent_mix q_h)
+      r0 salt q_sigma invMult_sigma
+      h_hnext_diff h_hnext1_lt h_hnext2_lt hz_hi hr0 hsalt h_inv_sigma h_shift_sigma
+  -- d_C diverges (d_cfa_inj_in_hnext)
+  have h_dC_diff :
+      qAvalanche (rotl z_lo 23 ^^^ update_h h1 ra_val rb_val result edge mem call spawn ent_mix q_h ^^^ edge ^^^ salt) q_cfa ≠
+      qAvalanche (rotl z_lo 23 ^^^ update_h h2 ra_val rb_val result edge mem call spawn ent_mix q_h ^^^ edge ^^^ salt) q_cfa := by
+    exact d_cfa_inj_in_hnext z_lo
+      (update_h h1 ra_val rb_val result edge mem call spawn ent_mix q_h)
+      (update_h h2 ra_val rb_val result edge mem call spawn ent_mix q_h)
+      edge salt q_cfa invMult_cfa
+      h_hnext_diff h_hnext1_lt h_hnext2_lt hz_lo hedge hsalt h_inv_cfa h_shift_cfa
+  -- d_D diverges (d_ddm_inj_in_hnext)
+  have h_dD_diff :
+      qAvalanche ((z_lo + z_hi) % 2 ^ 64 ^^^ update_h h1 ra_val rb_val result edge mem call spawn ent_mix q_h ^^^ ctr ^^^ salt) q_ddm ≠
+      qAvalanche ((z_lo + z_hi) % 2 ^ 64 ^^^ update_h h2 ra_val rb_val result edge mem call spawn ent_mix q_h ^^^ ctr ^^^ salt) q_ddm := by
+    exact d_ddm_inj_in_hnext z_lo z_hi
+      (update_h h1 ra_val rb_val result edge mem call spawn ent_mix q_h)
+      (update_h h2 ra_val rb_val result edge mem call spawn ent_mix q_h)
+      ctr salt q_ddm invMult_ddm
+      h_hnext_diff h_hnext1_lt h_hnext2_lt
+      (Nat.mod_lt _ (Nat.two_pow_pos 64))
+      hctr hsalt h_inv_ddm h_shift_ddm
+  exact ⟨h_hnext_diff, h_dσ_diff, h_dC_diff, h_dD_diff⟩

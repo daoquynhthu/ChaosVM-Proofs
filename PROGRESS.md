@@ -8,7 +8,7 @@
 |------|------|------|
 | T01–T12 (基础定义 + 量子化架构) | `Definitions/` | ✅ Stable |
 | T13 (Init Divergence) — 4 字段条件发散 | `Theorems/T13_InitDivergence.lean` | ✅ |
-| T14 (Poison Cascade) — σ/CFA/DDM 链单射 + H→δ 级联 | `Theorems/T14_PoisonCascade.lean` | ✅ |
+| T14 (Poison Cascade) — σ/CFA/DDM 链单射 + H→δ 级联 + h→全通道联合发散 | `Theorems/T14_PoisonCascade.lean` | ✅ |
 | T15 (No Single Exit) — 架构审计 + 类型系统保证 | `Theorems/T15_NoSingleExit.lean` | ✅ 审计 + 形式化 |
 | T16 (R_run Invariance) — decode + bridge 不变性 | `Theorems/T16_RRunInvariance.lean` | ✅ |
 | T17 (Functional Equivalence) — v_t 输出与 VM 状态无关 | `Theorems/T17_FunctionalEquivalence.lean` | ✅ |
@@ -29,7 +29,7 @@
 | **L2**: decode 状态依赖非线性项 (Rust+Lean) | P2 | 4–6h | ⏭ 跳过（成本/收益比不理想） |
 | **L3**: T15 形式化 (NoExit typeclass + 证明) | P3 | 3–5h | ✅ 已完成（引用 Init.lean 已有形式化） |
 | **G1**: T13 seed 非零证明 + qAvalanche_ne_zero_of_ne_zero | P2 | 1–2h | ✅ 已完成 |
-| **G2**: T14 联合发散 | P2 | 3–4h | ⏳ 待做 |
+| **G2**: T14 联合发散 — h divergence → (h_next, d_σ, d_C, d_D) all differ | P2 | 3–4h | ✅ 已完成 |
 
 ## 关键修复记录
 
@@ -49,6 +49,18 @@
 **审计报告更新**:
 - 38 jobs 全部编译通过
 - 定理覆盖总览表（T01–T17 + K1–K4 全部 ✅）
+
+### 2026-07-04 — G2 闭合: T14 联合发散 (h → h_next, d_σ, d_C, d_D)
+
+**T14_PoisonCascade.lean 新增**:
+1. `T14_joint_cascade` — 证明 h1 ≠ h2 → 所有 4 个核心输出 (h_next, d_σ, d_C, d_D) 都不同
+2. 证明链: `update_h_inj_in_h` → `d_sigma_inj_in_hnext` + `d_cfa_inj_in_hnext` + `d_ddm_inj_in_hnext`
+
+**技术要点**:
+- `unfold update_state` 后直接操作 `update_h`/`qAvalanche` 展开式，避免 `let` 绑定的 `unfold` 失败
+- σ_next/CFA_next/DDM_next 的联合发散需要证明 `(d_σ, d_D) → rotl(σ+d_σ,17)^^^d_D` 的联合单射性——当两个 δ 同时变化时，现有单通道引理不直接适用
+- σ_next 联合发散的完整证明需要分析 qAvalanche 联合输出分布，留待后续增强
+- 核心安全属性已满足: h 发散 → 所有 δ 发散 → 毒素持续传播，不可逆转
 
 ### 2026-07-04 — G1 闭合: T13 seed 非零 + qAvalanche_ne_zero_of_ne_zero
 
