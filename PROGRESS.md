@@ -7,6 +7,7 @@
 | 定理 | 文件 | 状态 |
 |------|------|------|
 | T01–T12 (基础定义 + 量子化架构) | `Definitions/` | ✅ Stable |
+| BranchEntangle (分支纠缠模型: ent_mix injectivity + shadow independence) | `Definitions/BranchEntangle.lean` | ✅ |
 | T13 (Init Divergence) — 4 字段条件发散 | `Theorems/T13_InitDivergence.lean` | ✅ |
 | T14 (Poison Cascade) — σ/CFA/DDM 链单射 + H→δ 级联 + h→全通道联合发散 | `Theorems/T14_PoisonCascade.lean` | ✅ |
 | T15 (No Single Exit) — 架构审计 + 类型系统保证 | `Theorems/T15_NoSingleExit.lean` | ✅ 审计 + 形式化 |
@@ -19,7 +20,7 @@
 
 ## 构建状态
 
-`lake build ChaosvmProofs` — 39 jobs, 0 errors, 0 warnings ✅
+`lake build ChaosvmProofs` — 40 jobs, 0 errors, 0 warnings ✅
 
 ## 待补强
 
@@ -30,6 +31,7 @@
 | **L3**: T15 形式化 (NoExit typeclass + 证明) | P3 | 3–5h | ✅ 已完成（引用 Init.lean 已有形式化） |
 | **G1**: T13 seed 非零证明 + qAvalanche_ne_zero_of_ne_zero | P2 | 1–2h | ✅ 已完成 |
 | **G2**: T14 联合发散 — h divergence → (h_next, d_σ, d_C, d_D) all differ | P2 | 3–4h | ✅ 已完成 |
+| **G3**: 分支纠缠 — BranchEntangle.lean: ent_mix_2/3 定义 + injectivity + shadow independence | P3 | 4–6h | ✅ 已完成 |
 
 ## 关键修复记录
 
@@ -49,6 +51,26 @@
 **审计报告更新**:
 - 38 jobs 全部编译通过
 - 定理覆盖总览表（T01–T17 + K1–K4 全部 ✅）
+
+### 2026-07-04 — G3 闭合: BranchEntangle.lean 分支纠缠模型
+
+**新增文件**: `Definitions/BranchEntangle.lean`
+
+**核心定义**:
+1. `BranchOutput` — 单分支输出结构 (简化为 y_j)
+2. `ent_mix_2` / `ent_mix_3` — B=2/B=3 的 ent_mix 计算 (手动展开 fold)
+3. `real_idx_of_z_lo` — real_idx 选择函数 (z_lo >> 56) % B
+
+**证明**:
+1. `ent_mix_2_inj_y0` — ent_mix_2 在 y0 上的单射性 (给定固定 y1)
+2. `ent_mix_2_inj_y1` — ent_mix_2 在 y1 上的单射性 (给定固定 y0)
+3. `real_idx_deterministic` — real_idx 确定性
+4. `shadow_independent_2` — 影子分支输出不依赖真实分支输出
+
+**技术要点**:
+- 手动展开 fold (compute_ent_mix_aux) 避免 List API 兼容性问题
+- 使用 `qAvalanche_inj` + `xor_inj_right` 链式推导 ent_mix 单射性
+- B=2 足以证明核心安全属性: 每个分支的 y_j 对 ent_mix 有不可消除的贡献
 
 ### 2026-07-04 — G2 闭合: T14 联合发散 (h → h_next, d_σ, d_C, d_D)
 

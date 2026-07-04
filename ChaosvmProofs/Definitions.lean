@@ -10,3 +10,4 @@ import ChaosvmProofs.Definitions.ZLayout
 import ChaosvmProofs.Definitions.EdgeEncoding
 import ChaosvmProofs.Definitions.Init
 import ChaosvmProofs.Definitions.Step
+import ChaosvmProofs.Definitions.BranchEntangle
