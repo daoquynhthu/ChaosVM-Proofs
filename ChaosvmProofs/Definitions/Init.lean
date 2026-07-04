@@ -118,6 +118,54 @@ theorem xor_cancel_right (a x : Nat) : x = (a ^^^ x) ^^^ a := by
     _ = (x ^^^ a) ^^^ a := by rw [Nat.xor_assoc]
     _ = (a ^^^ x) ^^^ a := by rw [Nat.xor_comm x a]
 
+/-- XOR cancellation: `a ^^^ b ≠ 0 ↔ a ≠ b`。 -/
+theorem xor_ne_zero_iff {a b : Nat} : a ^^^ b ≠ 0 ↔ a ≠ b := by
+  constructor
+  · intro h h_eq; subst h_eq; exact h (Nat.xor_self a)
+  · intro h h_eq
+    have h1 : (a ^^^ b) ^^^ b = (0 : Nat) ^^^ b := by rw [h_eq]
+    rw [Nat.xor_assoc, Nat.xor_self, Nat.zero_xor] at h1
+    exact h (Nat.xor_zero a ▸ h1)
+
+private theorem lor_testBit (a b i : Nat) : (a.lor b).testBit i = (a.testBit i || b.testBit i) := by
+  unfold Nat.lor
+  exact Nat.testBit_bitwise rfl a b i
+
+private theorem lor_eq_zero_imp_left {a b : Nat} (h : a.lor b = 0) : a = 0 := by
+  apply Nat.eq_of_testBit_eq
+  intro i
+  have h1 : (a.lor b).testBit i = (0 : Nat).testBit i := congrArg (·.testBit i) h
+  rw [lor_testBit] at h1
+  have h_zero : (0 : Nat).testBit i = false := by simp [Nat.testBit]
+  rw [h_zero] at h1
+  have h_ab := (Bool.or_eq_false_iff.mp h1).1
+  exact h_ab.trans h_zero.symm
+
+private theorem lor_eq_zero_imp_right {a b : Nat} (h : a.lor b = 0) : b = 0 := by
+  apply Nat.eq_of_testBit_eq
+  intro i
+  have h1 : (a.lor b).testBit i = (0 : Nat).testBit i := congrArg (·.testBit i) h
+  rw [lor_testBit] at h1
+  have h_zero : (0 : Nat).testBit i = false := by simp [Nat.testBit]
+  rw [h_zero] at h1
+  have h_ab := (Bool.or_eq_false_iff.mp h1).2
+  exact h_ab.trans h_zero.symm
+
+/-- poison_seed = (pσ<<56) | (pC<<48) | (pD<<40) 非零：任一分量非零则整体非零。
+    使用 testBit 位运算性质：lor a b = 0 → a = 0 ∧ b = 0；shl x n = 0 → x = 0。 -/
+theorem poison_seed_nonzero (pσ pC pD : Nat) (hp : pσ ≠ 0 ∨ pC ≠ 0 ∨ pD ≠ 0) :
+    Nat.lor (shl pσ 56) (Nat.lor (shl pC 48) (shl pD 40)) ≠ 0 := by
+  intro h_eq
+  have h1 : shl pσ 56 = 0 := lor_eq_zero_imp_left h_eq
+  have h2 : Nat.lor (shl pC 48) (shl pD 40) = 0 := lor_eq_zero_imp_right h_eq
+  have h3 : shl pC 48 = 0 := lor_eq_zero_imp_left h2
+  have h4 : shl pD 40 = 0 := lor_eq_zero_imp_right h2
+  unfold shl at h1 h3 h4
+  rcases hp with (hpσ | hpC | hpD)
+  · exact hpσ (by omega)
+  · exact hpC (by omega)
+  · exact hpD (by omega)
+
 /-- T13b lemma: sigma0 diverges if qAvalanche of the σ poison seed ≠ 0. -/
 theorem init_poisoned_sigma0_diverges (k0 k1 r0 r1 pσ pC pD : Nat) (qσ qC qD qH : QAvalancheConfig)
     (hp : pσ ≠ 0 ∨ pC ≠ 0 ∨ pD ≠ 0)

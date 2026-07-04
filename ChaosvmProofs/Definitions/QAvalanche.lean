@@ -384,3 +384,17 @@ theorem qAvalanche_lt_two_pow (x : Nat) (q : QAvalancheConfig) : qAvalanche x q 
   have hxor : ((x * q.mult) % (2 ^ 64) ^^^ shr ((x * q.mult) % (2 ^ 64)) q.xor_shift) < 2 ^ 64 :=
     xor_lt_two_pow _ _ 64 hmod hshr
   exact rotl64_lt_two_pow _ _ hxor
+
+/-- `qAvalanche(x, cfg) ≠ 0` when `x ≠ 0`。
+    由 qAvalanche_inj (b=0) + qAvalanche_zero 推导。
+    需要 `invMult` (cfg.mult 的模 2^64 逆元) 和 `xor_shift ≥ 1`。 -/
+theorem qAvalanche_ne_zero_of_ne_zero (x : Nat) (cfg : QAvalancheConfig) (invMult : Nat)
+    (hx : x ≠ 0) (hx_lt : x < 2 ^ 64)
+    (h_inv : (cfg.mult * invMult) % (2 ^ 64) = 1)
+    (h_shift : 1 ≤ cfg.xor_shift) :
+    qAvalanche x cfg ≠ 0 := by
+  intro h_eq
+  have h_zero : qAvalanche 0 cfg = 0 := qAvalanche_zero cfg
+  have h_combined : qAvalanche x cfg = qAvalanche 0 cfg := by omega
+  have h_eq := qAvalanche_inj x 0 cfg invMult h_combined hx_lt (by omega) h_inv h_shift
+  exact hx h_eq
