@@ -19,3 +19,14 @@ theorem T08_full_roundtrip (op anchor c1_t c2 σ DDM : Nat)
                  anchor c1_t c2 σ DDM q_sigma q_ddm)
                 c1_t c2 σ DDM q_sigma q_ddm = op :=
   full_bridge_decode_invariant op anchor c1_t c2 σ DDM q_sigma q_ddm hop
+
+/-- T08c: per-step full roundtrip (including phi_op_inv_step).
+    decode_full_step(bridge(encode(phi_op_step(op)))) → original op.
+    This proves the Rust-level roundtrip where `phi_op_inv_step(v_t, σ, DDM, H) = original_op`. -/
+theorem T08_full_roundtrip_step (op anchor c1_t c2 σ DDM H : Nat)
+    (q_sigma q_ddm q_op : QAvalancheConfig) (hop : op < 256) :
+    decode_full_step
+      (bridge_i41 (encode_c0_i41 (phi_op_step op σ DDM H q_op) anchor c2 q_sigma q_ddm)
+                   anchor c1_t c2 σ DDM q_sigma q_ddm)
+      c1_t c2 σ DDM H q_sigma q_ddm q_op = op :=
+  full_bridge_decode_invariant_step op anchor c1_t c2 σ DDM H q_sigma q_ddm q_op hop

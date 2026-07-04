@@ -1,4 +1,5 @@
 import ChaosvmProofs.Definitions.SemShare
+import ChaosvmProofs.Definitions.PhiOpStep
 
 open Nat
 
@@ -7,9 +8,11 @@ open Nat
 Rust 的 `phi_op_inv` 层：`v_t` 经过此置换（逆）后才成为实际 opcode。
 Lean 模型此前未覆盖此层，T17 证明的安全边界在 `v_t` 而非 `op_u8`。
 
-本文件定义 `phi`/`phi_op_inv`（Fin 256 上的仿射双射），
-以及 `decode_full` 包装器（`phi_op_inv ∘ decode_i41`），
-作为 T17 gap 闭包的模型基础。
+本文件定义：
+- **静态版本** `phi`/`phi_op_inv`（Fin 256 上的仿射双射，对应 L1 闭包）
+- **动态版本** `phi_op_step`/`phi_op_inv_step`（状态依赖仿射双射，对应 per-step 闭包）
+- `decode_full` / `decode_full_step` 包装器
+- 完整管线 roundtrip 定理
 
 在 Rust 实现中，该置换为构建时随机生成；此处选择仿射双射 `17*x+43`
 用于 Lean 可验证性（具体选择不影响任何定理）。
@@ -101,3 +104,37 @@ theorem full_bridge_decode_invariant (op anchor c1_t c2 σ DDM : Nat)
 theorem decode_full_lt_256 (c0_eff c1_t c2 σ DDM : Nat)
     (q_sigma q_ddm : QAvalancheConfig) : decode_full c0_eff c1_t c2 σ DDM q_sigma q_ddm < 256 :=
   phi_op_inv_lt_256 _
+
+/-! ## Per-step 版本（状态依赖 opcode 映射）
+
+架构文档 Section 4.6 要求 Φ_op,t 是动态的：opₜ = Φ_op,t⁻¹(vₜ)。
+以下定义使用 `PhiOpStep` 中的 `phi_op_step`/`phi_op_inv_step`，
+其中 mix 值从运行时状态 (σ, DDM, H) 派生。
+-/
+
+/-- Per-step 完整解码管线：`decode_full_step = phi_op_inv_step ∘ decode_i41`。
+    对应 Rust 中即将实现的 `phi_op_inv_step(v_t, σ, DDM, H)` 调用。 -/
+def decode_full_step (c0_eff c1_t c2 σ DDM H : Nat)
+    (q_sigma q_ddm q_op : QAvalancheConfig) : Nat :=
+  phi_op_inv_step (decode_i41 c0_eff c1_t c2 σ DDM q_sigma q_ddm) σ DDM H q_op
+
+/-- Per-step 完整 roundtrip：`decode_full_step(bridge(encode(phi_op_step(op)))) = op`。
+    即 phi_op_inv_step ∘ decode_i41 ∘ bridge ∘ encode ∘ phi_op_step = id。 -/
+theorem full_bridge_decode_invariant_step (op anchor c1_t c2 σ DDM H : Nat)
+    (q_sigma q_ddm q_op : QAvalancheConfig) (hop : op < 256) :
+    decode_full_step
+      (bridge_i41
+        (encode_c0_i41 (phi_op_step op σ DDM H q_op) anchor c2 q_sigma q_ddm)
+        anchor c1_t c2 σ DDM q_sigma q_ddm)
+      c1_t c2 σ DDM H q_sigma q_ddm q_op = op := by
+  unfold decode_full_step
+  have h := bridge_decode_invariant (phi_op_step op σ DDM H q_op) anchor c1_t c2 σ DDM q_sigma q_ddm
+  rw [h]
+  exact phi_op_inv_step_roundtrip op σ DDM H q_op hop
+
+/-- `decode_full_step` 在任意状态下均产生有界值（`< 256`）。 -/
+theorem decode_full_step_lt_256 (c0_eff c1_t c2 σ DDM H : Nat)
+    (q_sigma q_ddm q_op : QAvalancheConfig) :
+    decode_full_step c0_eff c1_t c2 σ DDM H q_sigma q_ddm q_op < 256 := by
+  unfold decode_full_step
+  exact phi_op_inv_step_lt_256 _ σ DDM H q_op

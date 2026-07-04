@@ -1,14 +1,14 @@
 # 证明链审计报告 — 2026-07-04
 
-审计范围: 21 定理文件 + 12 定义文件，~3800 行 Lean 代码
+审计范围: 22 定理文件 + 13 定义文件，~4000 行 Lean 代码
 
 ## 依赖图完整性
 
-无循环依赖 ✓ | 38 jobs 全部编译通过 ✓ | 0 `axiom`/`sorry`/`admit` ✓
+无循环依赖 ✓ | 39 jobs 全部编译通过 ✓ | 0 `axiom`/`sorry`/`admit` ✓
 
 ## L1 闭包（2026-07-04）
 
-phi_op_inv gap 已闭合：
+phi_op_inv gap 已闭合（静态版本）：
 
 | 文件 | 改动 |
 |------|------|
@@ -17,6 +17,21 @@ phi_op_inv gap 已闭合：
 | `T17_FunctionalEquivalence.lean` | 新增 T17_functional_equivalence_full（decode_full 输出无关性） |
 | `T08_BridgeDecodeInvariant.lean` | 新增 T08_full_roundtrip（完整管线轮转） |
 | `T15_NoSingleExit.lean` | 更新：引用 Init.lean 已有形式化，说明 NoExit 由类型系统保证 |
+
+## Per-step Φ_op 闭包（2026-07-04）
+
+架构 Section 4.6 动态 opcode 映射 gap 已闭合：
+
+| 文件 | 改动 |
+|------|------|
+| `Definitions/PhiOpStep.lean` | 新建：per-step phi_op_inv_step/phi_op_step + 全部 roundtrip 证明（0 sorrys） |
+| `Definitions/PhiPerm.lean` | 新增 decode_full_step + full_bridge_decode_invariant_step |
+| `T08_BridgeDecodeInvariant.lean` | 新增 T08_full_roundtrip_step |
+
+**关键证明策略**:
+- `native_decide` 无法处理 `∀ q_op : QAvalancheConfig`（无限类型），通过提取仿射核心引理 `affine_roundtrip_core`（仅 `∀ a b x < 256`）绕过
+- `Nat.lor` 需要单独引理（omega 不支持位运算），通过 `native_decide` 验证
+- mod_inv_table 通过 python 重新生成（旧表有错误，`native_decide` 正确检测）
 
 ## 已修复问题
 
@@ -51,6 +66,7 @@ L2（修改 Rust decode_i41 打破 XOR 对称）已评估并**跳过**：
 | T07 | ✅ | Q avalanche 单射性 |
 | T08 (v_t) | ✅ | bridge+decode roundtrip |
 | T08 (full) | ✅ | 完整管线 roundtrip（含 phi_op_inv） |
+| T08 (full, step) | ✅ | per-step 完整管线 roundtrip（含 phi_op_inv_step） |
 | T09–T12 | ✅ (rfl) | 状态更新确定性 |
 | T13 | ✅ | Init 发散（结构 + 条件字段级） |
 | T14 | ✅ | Poison cascade（H 链） |
@@ -59,3 +75,5 @@ L2（修改 Rust decode_i41 打破 XOR 对称）已评估并**跳过**：
 | T17 (v_t) | ✅ | v_t 输出无关性 |
 | T17 (full) | ✅ | decode_full 输出无关性 |
 | K1–K4 | ✅ | 关键性质（share 依赖、消去、不可替代性） |
+| PhiOpStep (core) | ✅ | mod_inv_odd_correct + affine_roundtrip_core（native_decide 验证） |
+| PhiOpStep (roundtrip) | ✅ | phi_op_inv_step_roundtrip + phi_op_step_inv_roundtrip |

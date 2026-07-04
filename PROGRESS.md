@@ -19,7 +19,7 @@
 
 ## 构建状态
 
-`lake build ChaosvmProofs` — 38 jobs, 0 errors, 0 warnings ✅
+`lake build ChaosvmProofs` — 39 jobs, 0 errors, 0 warnings ✅
 
 ## 待补强
 
@@ -47,6 +47,27 @@
 **审计报告更新**:
 - 38 jobs 全部编译通过
 - 定理覆盖总览表（T01–T17 + K1–K4 全部 ✅）
+
+### 2026-07-04 — Per-step Φ_op 形式化 (Phase A)
+
+**新增文件**:
+1. `Definitions/PhiOpStep.lean` — per-step `phi_op_inv_step`/`phi_op_step` 定义 + 全部 roundtrip 证明（0 sorrys）
+
+**核心改动**:
+1. `mod_inv_table` — 正确的模 256 奇数逆元查找表（python 验证生成）
+2. `affine_roundtrip_core` / `affine_roundtrip_core_rev` — 仿射 roundtrip 核心引理（`native_decide` 验证 256³ 种组合）
+3. `phi_op_inv_step_roundtrip` — `Φ_op,t⁻¹(Φ_op,t(x)) = x`（通过仿射核心引理推导）
+4. `phi_op_step_inv_roundtrip` — `Φ_op,t(Φ_op,t⁻¹(y)) = y`（反向 roundtrip）
+
+**更新文件**:
+1. `Definitions/PhiPerm.lean` — 新增 `decode_full_step`（per-step 完整解码管线）+ `full_bridge_decode_invariant_step`
+2. `Theorems/T08_BridgeDecodeInvariant.lean` — 新增 `T08_full_roundtrip_step`（per-step 完整 roundtrip）
+
+**技术要点**:
+- `native_decide` 无法处理 `∀ q_op : QAvalancheConfig`（无限类型），通过提取仿射核心引理（仅 `∀ a b x < 256`）绕过
+- `Nat.lor` 需要单独引理（omega 不支持位运算），通过 `native_decide` 验证
+- 旧 mod_inv_table 错误（`native_decide` 正确检测 false），用 python 重新生成
+- T17 per-step 版本不需要（v_t 独立性已由静态 T17 覆盖，per-step phi_op_inv 依赖状态属设计意图）
 
 ### 2026-07-03 — T14 完整实现 (P2a-d + P3a-f)
 
